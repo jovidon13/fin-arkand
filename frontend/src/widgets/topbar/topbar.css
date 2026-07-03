@@ -12,6 +12,57 @@
 .ak-topbar__spacer {
   flex: 1;
 }
+
+/* --- brand + logo --- */
+.ak-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.ak-topbar__logo {
+  height: 38px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+.ak-topbar__monogram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: var(--white);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+}
+.ak-topbar__divider {
+  width: 1px;
+  height: 30px;
+  background: var(--n-200);
+}
+.ak-topbar__title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.ak-topbar__title-main {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.16em;
+  color: var(--ink);
+}
+.ak-topbar__title-sub {
+  font-size: 11px;
+  color: var(--n-500);
+}
+@media (max-width: 560px) {
+  .ak-topbar__title {
+    display: none;
+  }
+}
 .ak-topbar__right {
   display: flex;
   align-items: center;

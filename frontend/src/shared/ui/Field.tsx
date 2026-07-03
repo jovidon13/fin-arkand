@@ -1,11 +1,8 @@
-import type {
-  InputHTMLAttributes,
-  ReactNode,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
-} from "react";
+import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 
 import { cn } from "@/shared/lib";
+
+import { DatePicker } from "./DatePicker";
 
 export function Field({
   label,
@@ -25,33 +22,30 @@ export function Field({
   );
 }
 
-export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn("ak-input", className)} {...rest} />;
+/** Two-column form grid (`.form-row`, 1fr 1fr, 1rem gap) — collapses on mobile. */
+export function FormRow({ children }: { children: ReactNode }) {
+  return <div className="form-row">{children}</div>;
+}
+
+export function Input({ className, type, ...rest }: InputHTMLAttributes<HTMLInputElement>) {
+  // Native <input type="date"> shows OS-styled controls — delegate to the
+  // custom calendar picker while preserving the value/onChange call signature.
+  if (type === "date") {
+    return (
+      <DatePicker
+        className={className}
+        value={rest.value as string | undefined}
+        onChange={rest.onChange as unknown as (e: { target: { value: string } }) => void}
+        id={rest.id}
+        name={rest.name}
+        disabled={rest.disabled}
+        placeholder={rest.placeholder as string | undefined}
+      />
+    );
+  }
+  return <input className={cn("ak-input", className)} type={type} {...rest} />;
 }
 
 export function Textarea({ className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea className={cn("ak-textarea", className)} {...rest} />;
-}
-
-interface Option {
-  value: string | number;
-  label: string;
-}
-
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  options: Option[];
-  placeholder?: string;
-}
-
-export function Select({ options, placeholder, className, ...rest }: SelectProps) {
-  return (
-    <select className={cn("ak-select", className)} {...rest}>
-      {placeholder && <option value="">{placeholder}</option>}
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  );
 }

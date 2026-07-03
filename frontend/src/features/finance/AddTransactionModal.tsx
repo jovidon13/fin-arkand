@@ -5,7 +5,7 @@ import { useBusinesses, useExpenseCategories } from "@/entities/business";
 import { useCreateTransaction, type TransactionCreate } from "@/entities/transaction";
 import { toApiError } from "@/shared/api";
 import { toISODate } from "@/shared/lib";
-import { Button, Field, Input, Modal, Select, Textarea, useToast } from "@/shared/ui";
+import { Button, Field, FormRow, Input, Modal, Select, Textarea, useToast } from "@/shared/ui";
 
 export function AddTransactionModal({
   open,
@@ -85,25 +85,27 @@ export function AddTransactionModal({
           />
         </Field>
       )}
-      <Field label={t("common.amount")}>
-        <Input
-          type="number"
-          min="0"
-          step="0.01"
-          value={form.amount}
-          onChange={(e) => set({ amount: e.target.value })}
-        />
-      </Field>
-      <Field label={t("common.method")}>
-        <Select
-          value={form.method}
-          onChange={(e) => set({ method: e.target.value as "cash" | "transfer" })}
-          options={[
-            { value: "cash", label: t("money.cash") },
-            { value: "transfer", label: t("money.transfer") },
-          ]}
-        />
-      </Field>
+      <FormRow>
+        <Field label={t("common.amount")}>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.amount}
+            onChange={(e) => set({ amount: e.target.value })}
+          />
+        </Field>
+        <Field label={t("common.method")}>
+          <Select
+            value={form.method}
+            onChange={(e) => set({ method: e.target.value as "cash" | "transfer" })}
+            options={[
+              { value: "cash", label: t("money.cash") },
+              { value: "transfer", label: t("money.transfer") },
+            ]}
+          />
+        </Field>
+      </FormRow>
       <Field label={t("common.date")}>
         <Input
           type="date"
