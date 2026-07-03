@@ -31,7 +31,7 @@ class HasRole(BasePermission):
     def __init__(self, *roles: str) -> None:
         self.required_roles = tuple(roles)
 
-    def __call__(self) -> "HasRole":
+    def __call__(self) -> HasRole:
         # DRF instantiates permission classes; when used as an instance we
         # return self so ``permission_classes = [HasRole(...)]`` works.
         return self

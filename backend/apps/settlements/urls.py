@@ -1,2 +1,10 @@
-# STUB — replaced by full implementation.
-urlpatterns = []
+from rest_framework.routers import DefaultRouter
+
+from .views import DebtViewSet, SettlementViewSet, TransferViewSet
+
+router = DefaultRouter()
+router.register("transfers", TransferViewSet, basename="transfer")
+router.register("debts", DebtViewSet, basename="debt")
+router.register("settlements", SettlementViewSet, basename="settlement")
+
+urlpatterns = router.urls

@@ -5,9 +5,8 @@ never float (design doc, financial invariants).
 from __future__ import annotations
 
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Union
 
-Number = Union[int, str, float, Decimal]
+Number = int | str | float | Decimal
 
 #: Canonical zero amount.
 ZERO = Decimal("0.00")

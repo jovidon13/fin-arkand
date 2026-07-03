@@ -50,7 +50,6 @@ def test_expense_requires_category():
 
 def test_profit_by_business_excludes_barter_and_unconfirmed():
     """ФНС-04: profit = confirmed income − confirmed expense; barter excluded."""
-    actor = UserFactory()
     biz = BusinessFactory()
     cat = ExpenseCategoryFactory()
 

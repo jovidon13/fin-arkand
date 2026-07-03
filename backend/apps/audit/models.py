@@ -52,7 +52,7 @@ class AuditLog(models.Model):
         before: Any = None,
         after: Any = None,
         meta: Any = None,
-    ) -> "AuditLog":
+    ) -> AuditLog:
         """Append an audit entry. Call inside the same transaction as the change."""
         ct = None
         oid = None

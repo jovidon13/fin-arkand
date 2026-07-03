@@ -1,0 +1,71 @@
+/* ARKAND · дизайн-токены — единственный источник цвета.
+   Палитра выведена из логотипа: вишнёвый феникс, глубокое бордо, тёплый чёрный.
+   Хардкод hex в компонентах ЗАПРЕЩЁН — только переменные отсюда. */
+:root {
+  /* --- бренд (вишнёвый зарезервирован: только кнопки/навигация/акценты) --- */
+  --brand: #a4161a;
+  --brand-hover: #85111a;
+  --brand-deep: #6b0f18;
+  --ink: #1a1416;
+  --paper: #faf9f8;
+  --white: #ffffff;
+
+  /* --- Arkand Crimson — шкала --- */
+  --crimson-50: #fdf2f3;
+  --crimson-100: #fadee0;
+  --crimson-200: #f3bcc0;
+  --crimson-300: #e88f96;
+  --crimson-400: #d85e68;
+  --crimson-500: #c22530;
+  --crimson-600: #a4161a;
+  --crimson-700: #85111a;
+  --crimson-800: #6b0f18;
+  --crimson-900: #4e0b12;
+  --crimson-950: #2e070a;
+
+  /* --- нейтральные (warm gray, лёгкий красный подтон) --- */
+  --n-50: #faf9f8;
+  --n-100: #f4f2f1;
+  --n-200: #e7e3e2;
+  --n-300: #d4cfcd;
+  --n-400: #b0a9a7;
+  --n-500: #8a8280;
+  --n-600: #665f5e;
+  --n-700: #4a4341;
+  --n-800: #2e2826;
+  --n-900: #1a1416;
+
+  /* --- статусы интерфейса --- */
+  --success: #15803d;
+  --warning: #b45309;
+  --error: #dc2626;
+  --info: #1d4ed8;
+
+  /* --- деньги (отдельная семантика; бренд ≠ деньги) --- */
+  --money-in: #15803d; /* доход / приход */
+  --money-out: #dc2626; /* расход / минус — сигнальный красный, не бренд */
+  --money-zero: #1a1416; /* ноль / баланс */
+
+  /* --- категориальная палитра графиков по бизнесам --- */
+  --cat-kras: #a4161a; /* Крас */
+  --cat-biryuza: #0d9488; /* Бирюза */
+  --cat-yantar: #b45309; /* Янтарь */
+  --cat-slanets: #475569; /* Сланец */
+  --cat-sliva: #7c3aed; /* Слива */
+  --cat-zelen: #15803d; /* Зелень */
+
+  /* --- радиусы / тени / типографика --- */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(26, 20, 22, 0.06);
+  --shadow: 0 4px 16px rgba(26, 20, 22, 0.08);
+  --shadow-lg: 0 12px 32px rgba(26, 20, 22, 0.12);
+
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+
+  --sidebar-w: 248px;
+  --topbar-h: 60px;
+}
