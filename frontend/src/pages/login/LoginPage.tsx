@@ -25,8 +25,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [logoStage, setLogoStage] = useState<0 | 1 | 2>(0);
-  const logoSrc = logoStage === 0 ? "/logo.png" : "/logo.svg";
+  const [logoOk, setLogoOk] = useState(true);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -53,12 +52,12 @@ export function LoginPage() {
     <div className="ak-login">
       <form className="ak-login__card" onSubmit={submit}>
         <div className="ak-login__head">
-          {logoStage < 2 ? (
+          {logoOk ? (
             <img
-              src={logoSrc}
+              src="/logo.svg"
               alt="ARKAND"
               className="ak-login__logo"
-              onError={() => setLogoStage((s) => (s + 1) as 0 | 1 | 2)}
+              onError={() => setLogoOk(false)}
             />
           ) : (
             <span className="ak-login__brand">ARKAND</span>

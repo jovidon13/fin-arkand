@@ -10,20 +10,19 @@ import "./topbar.css";
 export function Topbar() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
-  // Prefer the official PNG (drop yours in /public/logo.png), fall back to the
-  // bundled crimson SVG emblem, then to a text monogram.
-  const [logoStage, setLogoStage] = useState<0 | 1 | 2>(0);
-  const logoSrc = logoStage === 0 ? "/logo.png" : "/logo.svg";
+  // Full ARKAND lockup on the light header. Drop a raster at /public/logo.png
+  // to override; falls back to a monogram if neither asset loads.
+  const [logoOk, setLogoOk] = useState(true);
 
   return (
     <header className="ak-topbar">
       <div className="ak-topbar__brand">
-        {logoStage < 2 ? (
+        {logoOk ? (
           <img
-            src={logoSrc}
+            src="/logo.svg"
             alt="ARKAND"
             className="ak-topbar__logo"
-            onError={() => setLogoStage((s) => (s + 1) as 0 | 1 | 2)}
+            onError={() => setLogoOk(false)}
           />
         ) : (
           <span className="ak-topbar__monogram" aria-hidden="true">
@@ -31,10 +30,7 @@ export function Topbar() {
           </span>
         )}
         <span className="ak-topbar__divider" />
-        <div className="ak-topbar__title">
-          <span className="ak-topbar__title-main">ARKAND</span>
-          <span className="ak-topbar__title-sub">{t("nav.finance")}</span>
-        </div>
+        <span className="ak-topbar__module">{t("nav.finance")}</span>
       </div>
 
       <div className="ak-topbar__spacer" />

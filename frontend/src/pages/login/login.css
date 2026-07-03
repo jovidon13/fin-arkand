@@ -19,10 +19,10 @@
   margin-bottom: 24px;
 }
 .ak-login__logo {
-  height: 64px;
-  width: auto;
+  width: min(230px, 72%);
+  height: auto;
   display: block;
-  margin: 0 auto 10px;
+  margin: 0 auto 12px;
   object-fit: contain;
 }
 .ak-login__brand {

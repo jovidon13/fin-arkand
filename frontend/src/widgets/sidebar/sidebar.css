@@ -11,27 +11,27 @@
 }
 
 .ak-sidebar__brand {
-  padding: 18px 22px 16px;
+  padding: 20px 22px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-.ak-sidebar__brand-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.ak-sidebar__logo {
-  height: 30px;
-  width: auto;
-  flex-shrink: 0;
+  gap: 3px;
 }
 .ak-sidebar__mark {
   font-weight: 800;
   letter-spacing: 0.22em;
   font-size: 18px;
   color: var(--white);
+}
+.ak-sidebar__mark::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: var(--brand);
+  vertical-align: middle;
 }
 .ak-sidebar__sub {
   font-size: 11px;

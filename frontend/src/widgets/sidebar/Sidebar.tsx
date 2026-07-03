@@ -36,10 +36,7 @@ export function Sidebar() {
   return (
     <aside className="ak-sidebar">
       <div className="ak-sidebar__brand">
-        <div className="ak-sidebar__brand-row">
-          <img src="/logo.svg" alt="" className="ak-sidebar__logo" aria-hidden="true" />
-          <span className="ak-sidebar__mark">ARKAND</span>
-        </div>
+        <span className="ak-sidebar__mark">ARKAND</span>
         <span className="ak-sidebar__sub">{t("app.holding")}</span>
       </div>
       <nav className="ak-sidebar__nav">
