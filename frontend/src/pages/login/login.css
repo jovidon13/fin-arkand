@@ -8,22 +8,34 @@
 }
 .ak-login__card {
   background: var(--white);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   padding: 36px 32px;
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
+}
+.ak-login__head {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.ak-login__logo {
+  height: 64px;
+  width: auto;
+  display: block;
+  margin: 0 auto 10px;
+  object-fit: contain;
 }
 .ak-login__brand {
+  display: block;
   font-weight: 800;
   letter-spacing: 0.24em;
-  font-size: 24px;
+  font-size: 26px;
   color: var(--brand);
+  margin-bottom: 6px;
 }
 .ak-login__sub {
   color: var(--n-500);
   font-size: 13px;
-  margin-bottom: 22px;
 }
 .ak-login__title {
   font-size: 18px;
@@ -33,4 +45,66 @@
   width: 100%;
   justify-content: center;
   margin-top: 8px;
+}
+
+/* --- demo credentials --- */
+.ak-login__demo {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--n-200);
+}
+.ak-login__demo-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ak-login__demo-hint {
+  font-size: 12px;
+  color: var(--n-500);
+  margin: 2px 0 12px;
+}
+.ak-login__demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.ak-login__demo-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 12px;
+  background: var(--n-50);
+  border: 1px solid var(--n-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ak-login__demo-chip:hover {
+  background: var(--brand-light);
+  border-color: var(--brand);
+}
+.ak-login__demo-role {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+}
+.ak-login__demo-login {
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--n-700);
+}
+.ak-login__demo-pass {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--n-600);
+}
+.ak-login__demo-pass code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--n-100);
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
 }
