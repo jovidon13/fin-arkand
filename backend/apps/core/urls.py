@@ -7,7 +7,7 @@ from .views import (
     SiteObjectViewSet,
 )
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash=False)
 router.register("businesses", BusinessViewSet, basename="business")
 router.register("cities", CityViewSet, basename="city")
 router.register("site-objects", SiteObjectViewSet, basename="site-object")

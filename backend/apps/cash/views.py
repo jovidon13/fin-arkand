@@ -12,7 +12,6 @@ from .permissions import (
     CanManageFinance,
     CashRegisterScoped,
     IsAdminRole,
-    IsFinanceStaff,
     IsOwner,
 )
 from .serializers import (
@@ -46,7 +45,10 @@ class CashRegisterViewSet(
             return [(IsAdminRole | CanManageFinance)()]
         if self.action == "set_limit":
             return [(IsOwner | IsAdminRole)()]
-        return [IsFinanceStaff()]
+        # Reads: finance staff/owners see all; a cashier sees only their own
+        # register(s). Isolation (КАС-04) is enforced by the filtered queryset
+        # in get_queryset() plus object-level CashRegisterScoped on retrieve.
+        return [CashRegisterScoped()]
 
     @action(detail=True, methods=["post"])
     def set_limit(self, request, pk=None):

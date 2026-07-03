@@ -9,7 +9,7 @@ from .views import (
     me_view,
 )
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash=False)
 router.register("users", UserViewSet, basename="user")
 router.register("roles", RoleViewSet, basename="role")
 

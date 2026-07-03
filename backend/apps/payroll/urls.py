@@ -7,7 +7,7 @@ from .views import (
     PayrollSchemeViewSet,
 )
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash=False)
 router.register("payroll-schemes", PayrollSchemeViewSet, basename="payroll-scheme")
 router.register("employees", EmployeeViewSet, basename="employee")
 router.register("payroll-runs", PayrollRunViewSet, basename="payroll-run")
