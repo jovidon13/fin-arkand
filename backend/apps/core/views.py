@@ -1,13 +1,17 @@
 from rest_framework import mixins, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
-from apps.accounts.permissions import IsFinanceStaff
+from apps.accounts.permissions import IsFinanceStaff, IsOwner
 
+from . import services
 from .filters import BusinessFilter, SiteObjectFilter
 from .models import Business, City, ExpenseCategory, SiteObject
 from .serializers import (
     BusinessSerializer,
     CitySerializer,
     ExpenseCategorySerializer,
+    SetExpenseLimitSerializer,
     SiteObjectSerializer,
 )
 
@@ -26,6 +30,22 @@ class BusinessViewSet(ReferenceViewSet):
     filterset_class = BusinessFilter
     search_fields = ["name", "code"]
     ordering_fields = ["name", "created_at"]
+
+    def get_permissions(self):
+        # ХОЛ-21: only owners may change the «крупно/мелко» threshold/limit.
+        if self.action == "set_expense_limit":
+            return [IsOwner()]
+        return super().get_permissions()
+
+    @action(detail=True, methods=["post"], url_path="expense-limit")
+    def set_expense_limit(self, request, pk=None):
+        """Change the business expense threshold (ХОЛ-21) — owners only."""
+        s = SetExpenseLimitSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        business = services.set_expense_limit(
+            business_id=pk, limit=s.validated_data["expense_limit"], actor=request.user
+        )
+        return Response(BusinessSerializer(business).data)
 
 
 class CityViewSet(ReferenceViewSet):

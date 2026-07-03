@@ -119,6 +119,65 @@ def test_netting_reduces_both_debts_symmetrically():
     assert selectors.net_between(a.id, b.id) == Decimal("200.00")
 
 
+def test_netting_requires_counter_debt():
+    """БАР-03: netting without a counter debt is rejected (not a silent repayment)."""
+    actor = UserFactory()
+    debt = DebtFactory(amount=1000, outstanding=1000)
+    with pytest.raises(DomainError) as exc:
+        services.settle_debt(
+            debt_id=debt.id, kind=SettlementKind.NETTING, amount=Decimal("100"),
+            actor=actor, occurred_on=dt.date.today(),
+        )
+    assert exc.value.code == "counter_debt_required"
+
+
+def test_netting_rejects_non_reciprocal_counter():
+    """БАР-03: взаимозачёт only against the reciprocal obligation of the same two
+    businesses — an unrelated debt cannot be discharged."""
+    actor = UserFactory()
+    a = BusinessFactory()
+    b = BusinessFactory()
+    c = BusinessFactory()
+    debt = DebtFactory(debtor=a, creditor=b, amount=1000, outstanding=1000)
+    # c owes a — NOT the reciprocal of a→b.
+    counter = DebtFactory(debtor=c, creditor=a, amount=1000, outstanding=1000)
+    with pytest.raises(DomainError) as exc:
+        services.settle_debt(
+            debt_id=debt.id, kind=SettlementKind.NETTING, amount=Decimal("100"),
+            actor=actor, occurred_on=dt.date.today(), counter_debt_id=counter.id,
+        )
+    assert exc.value.code == "counter_debt_not_reciprocal"
+
+
+def test_netting_rejects_self():
+    """БАР-03: a debt cannot be netted against itself."""
+    actor = UserFactory()
+    debt = DebtFactory(amount=1000, outstanding=1000)
+    with pytest.raises(DomainError) as exc:
+        services.settle_debt(
+            debt_id=debt.id, kind=SettlementKind.NETTING, amount=Decimal("100"),
+            actor=actor, occurred_on=dt.date.today(), counter_debt_id=debt.id,
+        )
+    assert exc.value.code == "counter_debt_self"
+
+
+def test_settle_debt_is_idempotent():
+    """A repeated settle with the same Idempotency-Key does not double-close."""
+    actor = UserFactory()
+    debt = DebtFactory(amount=1000, outstanding=1000)
+    first = services.settle_debt(
+        debt_id=debt.id, kind=SettlementKind.REPAYMENT, amount=Decimal("400"),
+        actor=actor, occurred_on=dt.date.today(), idempotency_key="settle-1",
+    )
+    second = services.settle_debt(
+        debt_id=debt.id, kind=SettlementKind.REPAYMENT, amount=Decimal("400"),
+        actor=actor, occurred_on=dt.date.today(), idempotency_key="settle-1",
+    )
+    assert first.id == second.id
+    debt.refresh_from_db()
+    assert debt.outstanding == Decimal("600.00")  # reduced once, not twice
+
+
 def test_netting_insufficient_counter_debt():
     actor = UserFactory()
     a = BusinessFactory()

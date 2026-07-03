@@ -158,6 +158,9 @@ class IdempotencyKey(models.Model):
 
     key = models.CharField(max_length=200)
     scope = models.CharField(max_length=120)
+    # Primary key of the object created by the guarded request, so a repeated
+    # request can return the original instead of creating a duplicate.
+    result_pk = models.PositiveBigIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

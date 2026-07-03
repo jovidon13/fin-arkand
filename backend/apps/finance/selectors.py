@@ -8,6 +8,7 @@ from django.db.models import DecimalField, Q, QuerySet, Sum, Value
 from django.db.models.functions import Coalesce
 
 from apps.core.enums import TxKind, TxStatus
+from apps.core.models import Business
 from apps.core.money import ZERO
 
 from .models import Transaction
@@ -56,29 +57,35 @@ def business_totals(
 def profit_by_business(
     *, date_from: dt.date | None = None, date_to: dt.date | None = None
 ) -> list[dict]:
-    """Income/expense/profit grouped by business (ФНС-04, feeds reports ФНС-10)."""
+    """Income/expense/profit grouped by business (ФНС-04, feeds reports ФНС-10).
+
+    Every active business gets a row — a business with no confirmed non-barter
+    activity in the period shows zeros rather than disappearing ("прибыль по
+    каждому бизнесу").
+    """
     qs = confirmed_qs().filter(is_barter=False)
     if date_from is not None:
         qs = qs.filter(occurred_on__gte=date_from)
     if date_to is not None:
         qs = qs.filter(occurred_on__lte=date_to)
 
-    rows = (
-        qs.values("business_id", "business__name")
-        .annotate(
+    agg = {
+        r["business_id"]: r
+        for r in qs.values("business_id").annotate(
             income=Coalesce(Sum("amount", filter=Q(kind=TxKind.INCOME)), _ZERO),
             expense=Coalesce(Sum("amount", filter=Q(kind=TxKind.EXPENSE)), _ZERO),
         )
-        .order_by("business__name")
-    )
+    }
+
     result = []
-    for r in rows:
-        income = r["income"] or ZERO
-        expense = r["expense"] or ZERO
+    for biz in Business.objects.filter(is_active=True).order_by("name"):
+        row = agg.get(biz.id)
+        income = (row["income"] if row else ZERO) or ZERO
+        expense = (row["expense"] if row else ZERO) or ZERO
         result.append(
             {
-                "business_id": r["business_id"],
-                "business_name": r["business__name"],
+                "business_id": biz.id,
+                "business_name": biz.name,
                 "income": income,
                 "expense": expense,
                 "profit": income - expense,

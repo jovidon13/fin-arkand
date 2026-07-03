@@ -28,3 +28,21 @@ def money(value: Number) -> Decimal:
 
 def is_positive(value: Number) -> bool:
     return money(value) > ZERO
+
+
+def stringify(value):
+    """Recursively convert ``Decimal`` amounts to 2-dp strings for JSON output.
+
+    Money in JSON is always a string with two decimals (money invariant): a raw
+    ``Decimal`` in a Response would otherwise be rendered as a float by DRF, and
+    an un-quantized aggregate (e.g. ``Decimal("30500")``) would serialize as
+    ``"30500"`` instead of ``"30500.00"``. Use at the API boundary for payloads
+    built from selectors that return plain dicts/lists.
+    """
+    if isinstance(value, Decimal):
+        return str(money(value))
+    if isinstance(value, dict):
+        return {k: stringify(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [stringify(v) for v in value]
+    return value

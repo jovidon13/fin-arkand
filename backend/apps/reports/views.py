@@ -4,27 +4,15 @@ Decimal amounts are stringified so money stays a string in JSON (never float).
 """
 from __future__ import annotations
 
-from decimal import Decimal
-
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsFinanceStaff
-from apps.core.selectors import parse_period
+from apps.core.money import stringify as _stringify
+from apps.core.selectors import parse_int_param, parse_period
 
 from . import selectors
-
-
-def _stringify(value):
-    """Recursively convert Decimal → str so amounts are strings in JSON."""
-    if isinstance(value, Decimal):
-        return str(value)
-    if isinstance(value, dict):
-        return {k: _stringify(v) for k, v in value.items()}
-    if isinstance(value, list | tuple):
-        return [_stringify(v) for v in value]
-    return value
 
 
 class _ReportView(APIView):
@@ -61,15 +49,10 @@ class PayrollReportView(_ReportView):
     """ФНС-13: зарплатный фонд; прибыль по бизнесам и по холдингу."""
 
     def get(self, request: Request) -> Response:
-        year = request.query_params.get("year")
-        month = request.query_params.get("month")
+        year = parse_int_param(request.query_params, "year")
+        month = parse_int_param(request.query_params, "month")
         return Response(
-            _stringify(
-                selectors.payroll_report(
-                    year=int(year) if year else None,
-                    month=int(month) if month else None,
-                )
-            )
+            _stringify(selectors.payroll_report(year=year, month=month))
         )
 
 

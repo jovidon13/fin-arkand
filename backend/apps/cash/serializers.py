@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.core.enums import PayMethod, TxKind
@@ -64,6 +65,13 @@ class CashOperationCreateSerializer(serializers.Serializer):
     occurred_on = serializers.DateField()
     counterparty = serializers.CharField(required=False, allow_blank=True, default="")
     note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_occurred_on(self, value):
+        # КАС-02/03: дата операции — это факт; будущая дата запрещена (иначе можно
+        # обойти месячный лимит оборота, датируя операцию другим периодом).
+        if value > timezone.localdate():
+            raise serializers.ValidationError("Дата операции не может быть в будущем")
+        return value
 
 
 class SetLimitSerializer(serializers.Serializer):

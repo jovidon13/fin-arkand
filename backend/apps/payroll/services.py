@@ -135,8 +135,10 @@ def run_payroll(
             f"Расчёт за {year}-{month:02d} уже {run.get_status_display().lower()} — пересчёт запрещён",
         )
 
-    # Recalculation: drop previously computed items for this run.
-    PayrollItem.objects.filter(run=run).delete()
+    # Recalculation: soft-delete previously computed items — money-bearing rows
+    # are never physically deleted (the AliveManager hides them, history stays).
+    for prior in list(PayrollItem.objects.filter(run=run)):
+        prior.soft_delete(actor if getattr(actor, "pk", None) else None)
 
     run_total = ZERO
     count = 0
@@ -180,12 +182,12 @@ def approve_payroll(*, run_id: int, actor) -> PayrollRun:
 
     if run.status == PayrollStatus.APPROVED:
         return run  # idempotent
-    if run.status == PayrollStatus.PAID:
-        raise DomainError("payroll_locked", "Выплаченный расчёт нельзя переутвердить")
-    if run.status not in (PayrollStatus.DRAFT, PayrollStatus.CALCULATED):
+    if run.status != PayrollStatus.CALCULATED:
+        # Only a calculated run may be approved (a DRAFT has no items / zero total).
         raise DomainError(
             "payroll_not_approvable",
-            f"Расчёт в статусе «{run.get_status_display()}» нельзя утвердить",
+            f"Утвердить можно только рассчитанный расчёт "
+            f"(текущий статус: «{run.get_status_display()}»)",
         )
 
     before = _run_snapshot(run)

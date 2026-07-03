@@ -2,6 +2,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.money import stringify
 from apps.core.selectors import parse_period
 
 from . import selectors, services
@@ -56,6 +57,7 @@ class TransactionViewSet(
             is_barter=data["is_barter"],
             source=data["source"],
             status=data["status"],
+            idempotency_key=request.headers.get("Idempotency-Key"),
         )
         return Response(TransactionSerializer(tx).data, status=status.HTTP_201_CREATED)
 
@@ -94,4 +96,4 @@ class ProfitViewSet(viewsets.ViewSet):
     def list(self, request):
         date_from, date_to = parse_period(request.query_params)
         rows = selectors.profit_by_business(date_from=date_from, date_to=date_to)
-        return Response(rows)
+        return Response(stringify(rows))

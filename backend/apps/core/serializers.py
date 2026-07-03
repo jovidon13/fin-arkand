@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from .models import Business, City, ExpenseCategory, SiteObject
@@ -9,6 +11,14 @@ class BusinessSerializer(serializers.ModelSerializer):
     class Meta:
         model = Business
         fields = ["id", "code", "name", "kind", "kind_display", "expense_limit", "is_active"]
+
+
+class SetExpenseLimitSerializer(serializers.Serializer):
+    """Payload for the owner-only expense-limit action (ХОЛ-21)."""
+
+    expense_limit = serializers.DecimalField(
+        max_digits=14, decimal_places=2, min_value=Decimal("0")
+    )
 
 
 class CitySerializer(serializers.ModelSerializer):

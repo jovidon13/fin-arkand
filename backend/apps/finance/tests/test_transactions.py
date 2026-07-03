@@ -75,6 +75,37 @@ def test_profit_by_business_excludes_barter_and_unconfirmed():
     assert row["profit"] == Decimal("700.00")
 
 
+def test_create_transaction_is_idempotent():
+    """A repeated create with the same Idempotency-Key returns the original row."""
+    from apps.finance.models import Transaction
+
+    actor = UserFactory()
+    biz = BusinessFactory()
+    kwargs = dict(
+        business_id=biz.id, kind=TxKind.INCOME, amount=Decimal("100"),
+        method=PayMethod.CASH, occurred_on=dt.date.today(), actor=actor,
+    )
+    first = services.create_transaction(**kwargs, idempotency_key="key-1")
+    second = services.create_transaction(**kwargs, idempotency_key="key-1")
+    assert first.id == second.id
+    assert Transaction.objects.filter(business=biz).count() == 1
+
+    # A different key creates a distinct row.
+    third = services.create_transaction(**kwargs, idempotency_key="key-2")
+    assert third.id != first.id
+    assert Transaction.objects.filter(business=biz).count() == 2
+
+
+def test_profit_by_business_includes_zero_activity_business():
+    """ФНС-04: a business with no confirmed activity still appears with zeros."""
+    biz = BusinessFactory()  # no transactions at all
+    rows = selectors.profit_by_business()
+    row = next(r for r in rows if r["business_id"] == biz.id)
+    assert row["income"] == Decimal("0.00")
+    assert row["expense"] == Decimal("0.00")
+    assert row["profit"] == Decimal("0.00")
+
+
 def test_amount_must_be_positive():
     actor = UserFactory()
     biz = BusinessFactory()

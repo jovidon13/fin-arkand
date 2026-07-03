@@ -15,10 +15,12 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
+from rest_framework import status
 
 from apps.audit.models import AuditLog
 from apps.core.enums import DebtStatus, SettlementKind, TransferStatus
 from apps.core.exceptions import DomainError
+from apps.core.idempotency import run_idempotent
 from apps.core.money import ZERO, money
 
 from .models import Debt, Settlement, Transfer
@@ -64,11 +66,13 @@ def create_transfer(
     actor,
     description: str = "",
     is_barter: bool = False,
+    idempotency_key: str | None = None,
 ) -> Transfer:
     """Register a value hand-off between two businesses (БАР-01 / ХОЛ-30).
 
     Created ``pending``; a debt is only booked on approval. Businesses must
-    differ and the amount must be positive.
+    differ and the amount must be positive. A repeat with the same
+    ``idempotency_key`` returns the original transfer.
     """
     amount = money(amount)
     if amount <= ZERO:
@@ -79,18 +83,28 @@ def create_transfer(
             "Передача возможна только между разными бизнесами",
         )
 
-    transfer = Transfer.objects.create(
-        from_business_id=from_business_id,
-        to_business_id=to_business_id,
-        amount=amount,
-        description=description,
-        occurred_on=occurred_on,
-        is_barter=is_barter,
-        status=TransferStatus.PENDING,
-        created_by=actor if getattr(actor, "pk", None) else None,
+    def _create() -> Transfer:
+        transfer = Transfer.objects.create(
+            from_business_id=from_business_id,
+            to_business_id=to_business_id,
+            amount=amount,
+            description=description,
+            occurred_on=occurred_on,
+            is_barter=is_barter,
+            status=TransferStatus.PENDING,
+            created_by=actor if getattr(actor, "pk", None) else None,
+        )
+        AuditLog.record(
+            actor, "transfer.created", transfer, after=_transfer_snapshot(transfer)
+        )
+        return transfer
+
+    return run_idempotent(
+        scope="settlements.create_transfer",
+        key=idempotency_key,
+        create=_create,
+        fetch=lambda pk: Transfer.objects.get(pk=pk),
     )
-    AuditLog.record(actor, "transfer.created", transfer, after=_transfer_snapshot(transfer))
-    return transfer
 
 
 @transaction.atomic
@@ -172,82 +186,122 @@ def settle_debt(
     occurred_on: dt.date,
     counter_debt_id: int | None = None,
     note: str = "",
+    idempotency_key: str | None = None,
 ) -> Settlement:
     """Close (fully or partially) a debt (БАР-03 / ХОЛ-32).
 
     Reduces ``outstanding`` by ``amount`` and flips status to
     ``partially_settled`` / ``settled``. For ``netting`` with a ``counter_debt``
     the counter obligation is reduced symmetrically (взаимозачёт). All mutable
-    debt rows are locked for the duration of the transaction.
+    debt rows are locked for the duration of the transaction. A repeat with the
+    same ``idempotency_key`` returns the original settlement (no double-close).
     """
     amount = money(amount)
     if amount <= ZERO:
         raise DomainError("amount_not_positive", "Сумма должна быть больше нуля")
 
-    debt = Debt.objects.select_for_update().get(pk=debt_id)
-    if debt.outstanding <= ZERO:
-        raise DomainError("debt_already_settled", "Долг уже полностью закрыт")
-    if amount > debt.outstanding:
-        raise DomainError(
-            "settle_exceeds_outstanding",
-            "Сумма закрытия превышает остаток долга",
-            details={"outstanding": str(debt.outstanding), "amount": str(amount)},
+    def _create() -> Settlement:
+        try:
+            debt = Debt.objects.select_for_update().get(pk=debt_id)
+        except Debt.DoesNotExist:
+            raise DomainError(
+                "debt_not_found", "Долг не найден",
+                status_code=status.HTTP_404_NOT_FOUND,
+            ) from None
+        if debt.outstanding <= ZERO:
+            raise DomainError("debt_already_settled", "Долг уже полностью закрыт")
+        if amount > debt.outstanding:
+            raise DomainError(
+                "settle_exceeds_outstanding",
+                "Сумма закрытия превышает остаток долга",
+                details={"outstanding": str(debt.outstanding), "amount": str(amount)},
+            )
+
+        counter_debt: Debt | None = None
+        if kind == SettlementKind.NETTING:
+            # Взаимозачёт (БАР-03 / ХОЛ-32): требуется реальный встречный долг тех же
+            # двух бизнесов в обратную сторону — иначе можно ошибочно погасить чужой долг.
+            if counter_debt_id is None:
+                raise DomainError(
+                    "counter_debt_required",
+                    "Для взаимозачёта нужно указать встречный долг",
+                )
+            if counter_debt_id == debt_id:
+                raise DomainError(
+                    "counter_debt_self", "Нельзя зачесть долг сам с собой"
+                )
+            try:
+                counter_debt = Debt.objects.select_for_update().get(pk=counter_debt_id)
+            except Debt.DoesNotExist:
+                raise DomainError(
+                    "counter_debt_not_found", "Встречный долг не найден",
+                    status_code=status.HTTP_404_NOT_FOUND,
+                ) from None
+            if (
+                counter_debt.debtor_id != debt.creditor_id
+                or counter_debt.creditor_id != debt.debtor_id
+            ):
+                raise DomainError(
+                    "counter_debt_not_reciprocal",
+                    "Взаимозачёт возможен только со встречным долгом тех же двух бизнесов",
+                )
+            if counter_debt.outstanding < amount:
+                raise DomainError(
+                    "counter_debt_insufficient",
+                    "Остаток встречного долга меньше суммы взаимозачёта",
+                    details={
+                        "counter_outstanding": str(counter_debt.outstanding),
+                        "amount": str(amount),
+                    },
+                )
+
+        before = _debt_snapshot(debt)
+        debt.outstanding = money(debt.outstanding - amount)
+        debt.status = _debt_status_for(debt.outstanding, debt.amount)
+        debt.save(update_fields=["outstanding", "status", "updated_at"])
+
+        settlement = Settlement.objects.create(
+            debt=debt,
+            kind=kind,
+            amount=amount,
+            counter_debt=counter_debt,
+            note=note,
+            occurred_on=occurred_on,
+            created_by=actor if getattr(actor, "pk", None) else None,
         )
 
-    counter_debt: Debt | None = None
-    if kind == SettlementKind.NETTING and counter_debt_id is not None:
-        # Lock the counter obligation and reduce it by the same amount (interzачёт).
-        counter_debt = Debt.objects.select_for_update().get(pk=counter_debt_id)
-        if counter_debt.outstanding < amount:
-            raise DomainError(
-                "counter_debt_insufficient",
-                "Остаток встречного долга меньше суммы взаимозачёта",
-                details={
-                    "counter_outstanding": str(counter_debt.outstanding),
+        AuditLog.record(
+            actor, "debt.settled", debt,
+            before=before, after=_debt_snapshot(debt),
+            meta={"settlement_id": settlement.id, "kind": kind, "amount": str(amount)},
+        )
+
+        if counter_debt is not None:
+            counter_before = _debt_snapshot(counter_debt)
+            counter_debt.outstanding = money(counter_debt.outstanding - amount)
+            counter_debt.status = _debt_status_for(
+                counter_debt.outstanding, counter_debt.amount
+            )
+            counter_debt.save(update_fields=["outstanding", "status", "updated_at"])
+            AuditLog.record(
+                actor, "debt.settled", counter_debt,
+                before=counter_before, after=_debt_snapshot(counter_debt),
+                meta={
+                    "settlement_id": settlement.id,
+                    "kind": kind,
                     "amount": str(amount),
+                    "netting_with": debt.id,
                 },
             )
 
-    before = _debt_snapshot(debt)
-    debt.outstanding = money(debt.outstanding - amount)
-    debt.status = _debt_status_for(debt.outstanding, debt.amount)
-    debt.save(update_fields=["outstanding", "status", "updated_at"])
+        return settlement
 
-    settlement = Settlement.objects.create(
-        debt=debt,
-        kind=kind,
-        amount=amount,
-        counter_debt=counter_debt,
-        note=note,
-        occurred_on=occurred_on,
-        created_by=actor if getattr(actor, "pk", None) else None,
+    return run_idempotent(
+        scope="settlements.settle_debt",
+        key=idempotency_key,
+        create=_create,
+        fetch=lambda pk: Settlement.objects.get(pk=pk),
     )
-
-    AuditLog.record(
-        actor, "debt.settled", debt,
-        before=before, after=_debt_snapshot(debt),
-        meta={"settlement_id": settlement.id, "kind": kind, "amount": str(amount)},
-    )
-
-    if counter_debt is not None:
-        counter_before = _debt_snapshot(counter_debt)
-        counter_debt.outstanding = money(counter_debt.outstanding - amount)
-        counter_debt.status = _debt_status_for(
-            counter_debt.outstanding, counter_debt.amount
-        )
-        counter_debt.save(update_fields=["outstanding", "status", "updated_at"])
-        AuditLog.record(
-            actor, "debt.settled", counter_debt,
-            before=counter_before, after=_debt_snapshot(counter_debt),
-            meta={
-                "settlement_id": settlement.id,
-                "kind": kind,
-                "amount": str(amount),
-                "netting_with": debt.id,
-            },
-        )
-
-    return settlement
 
 
 @transaction.atomic
@@ -259,6 +313,7 @@ def create_barter(
     occurred_on: dt.date,
     actor,
     description: str = "",
+    idempotency_key: str | None = None,
 ) -> Transfer:
     """Register a barter exchange (БАР-04 / ХОЛ-33).
 
@@ -273,4 +328,5 @@ def create_barter(
         actor=actor,
         description=description,
         is_barter=True,
+        idempotency_key=idempotency_key,
     )

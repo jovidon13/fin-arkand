@@ -18,6 +18,7 @@ from django.utils import timezone
 from apps.audit.models import AuditLog
 from apps.core.enums import TxKind, TxStatus
 from apps.core.exceptions import DomainError
+from apps.core.idempotency import run_idempotent
 from apps.core.money import money
 
 from .models import Transaction
@@ -48,12 +49,14 @@ def create_transaction(
     is_barter: bool = False,
     source: str = "",
     status: str = TxStatus.PENDING,
+    idempotency_key: str | None = None,
 ) -> Transaction:
     """Create a transaction (ФНС-01/02/03).
 
     Expenses require an article (ФНС-02). Incomes start as ``pending`` and need
     a financier's confirmation (ФНС-01); an explicit ``status`` may seed
-    already-confirmed rows (used by the seed command).
+    already-confirmed rows (used by the seed command). A repeated request with
+    the same ``idempotency_key`` returns the original row (no duplicate).
     """
     amount = money(amount)
     if amount <= 0:
@@ -61,28 +64,36 @@ def create_transaction(
     if kind == TxKind.EXPENSE and category_id is None:
         raise DomainError("category_required", "Для расхода обязательна статья (ФНС-02)")
 
-    tx = Transaction.objects.create(
-        business_id=business_id,
-        kind=kind,
-        category_id=category_id,
-        amount=amount,
-        method=method,
-        status=status,
-        occurred_on=occurred_on,
-        site_object_id=site_object_id,
-        counterparty=counterparty,
-        note=note,
-        is_barter=is_barter,
-        source=source,
-        created_by=actor if getattr(actor, "pk", None) else None,
-    )
-    if status == TxStatus.CONFIRMED:
-        tx.confirmed_by = actor if getattr(actor, "pk", None) else None
-        tx.confirmed_at = timezone.now()
-        tx.save(update_fields=["confirmed_by", "confirmed_at", "updated_at"])
+    def _create() -> Transaction:
+        tx = Transaction.objects.create(
+            business_id=business_id,
+            kind=kind,
+            category_id=category_id,
+            amount=amount,
+            method=method,
+            status=status,
+            occurred_on=occurred_on,
+            site_object_id=site_object_id,
+            counterparty=counterparty,
+            note=note,
+            is_barter=is_barter,
+            source=source,
+            created_by=actor if getattr(actor, "pk", None) else None,
+        )
+        if status == TxStatus.CONFIRMED:
+            tx.confirmed_by = actor if getattr(actor, "pk", None) else None
+            tx.confirmed_at = timezone.now()
+            tx.save(update_fields=["confirmed_by", "confirmed_at", "updated_at"])
 
-    AuditLog.record(actor, "tx.created", tx, after=_snapshot(tx))
-    return tx
+        AuditLog.record(actor, "tx.created", tx, after=_snapshot(tx))
+        return tx
+
+    return run_idempotent(
+        scope="finance.create_transaction",
+        key=idempotency_key,
+        create=_create,
+        fetch=lambda pk: Transaction.objects.get(pk=pk),
+    )
 
 
 @transaction.atomic

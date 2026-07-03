@@ -112,5 +112,6 @@ class CashOperationViewSet(
             actor=request.user,
             counterparty=data["counterparty"],
             note=data["note"],
+            idempotency_key=request.headers.get("Idempotency-Key"),
         )
         return Response(CashOperationSerializer(op).data, status=status.HTTP_201_CREATED)

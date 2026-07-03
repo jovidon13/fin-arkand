@@ -54,6 +54,7 @@ class TransferViewSet(
             actor=request.user,
             description=data["description"],
             is_barter=data["is_barter"],
+            idempotency_key=request.headers.get("Idempotency-Key"),
         )
         return Response(TransferSerializer(transfer).data, status=status.HTTP_201_CREATED)
 
@@ -109,6 +110,7 @@ class DebtViewSet(
             occurred_on=data["occurred_on"],
             counter_debt_id=data.get("counter_debt"),
             note=data["note"],
+            idempotency_key=request.headers.get("Idempotency-Key"),
         )
         return Response(
             SettlementSerializer(settlement).data, status=status.HTTP_201_CREATED
