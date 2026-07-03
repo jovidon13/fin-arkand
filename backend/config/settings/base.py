@@ -64,6 +64,9 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise serves collected static files (admin, DRF, Swagger) directly
+    # from the app process — no separate web server needed on Railway.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -128,6 +131,15 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# WhiteNoise: compress + hash static files so they can be served with far-future
+# cache headers straight from the app (used in prod on Railway).
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --------------------------------------------------------------------------- #
@@ -174,9 +186,14 @@ SPECTACULAR_SETTINGS = {
 }
 
 # --------------------------------------------------------------------------- #
-# CORS
+# CORS / CSRF
 # --------------------------------------------------------------------------- #
+# Exact SPA origins allowed to call the API (Vercel prod domain, localhost).
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
+# Regex origins — handy for Vercel preview URLs, e.g. r"^https://.*\.vercel\.app$".
+CORS_ALLOWED_ORIGIN_REGEXES = env.list("CORS_ALLOWED_ORIGIN_REGEXES", default=[])
+# Trusted origins for Django's CSRF (admin login over HTTPS behind a proxy).
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 # --------------------------------------------------------------------------- #
 # Celery — payroll, reports, exports

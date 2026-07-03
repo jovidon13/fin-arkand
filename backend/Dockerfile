@@ -19,7 +19,10 @@ COPY . .
 
 RUN chmod +x /app/entrypoint.sh
 
+# Local/compose default; Railway injects its own $PORT (honored by the CMD below).
 EXPOSE 8000
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60"]
+# Shell form so ${PORT} is expanded at runtime — Railway binds the container to
+# the port it assigns via $PORT (falls back to 8000 for local/compose).
+CMD gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 3 --timeout 60

@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "description": "ARKAND — финансовая CRM холдинга, admin-панель (React 19 + FSD)",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

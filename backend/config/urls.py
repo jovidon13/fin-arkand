@@ -5,11 +5,17 @@ Every domain app exposes ``apps.<app>.urls`` with a DRF router. They are all
 mounted under the versioned ``/api/v1/`` prefix (API convention, design doc §07).
 """
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
 )
+
+
+def healthz(_request):
+    """Unauthenticated liveness probe for the platform (Railway health check)."""
+    return JsonResponse({"status": "ok"})
 
 api_v1 = [
     path("", include("apps.accounts.urls")),
@@ -24,6 +30,7 @@ api_v1 = [
 ]
 
 urlpatterns = [
+    path("healthz", healthz),
     path("admin/", admin.site.urls),
     path("api/v1/", include((api_v1, "api"), namespace="v1")),
     # OpenAPI schema + Swagger UI
