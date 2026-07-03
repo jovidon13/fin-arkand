@@ -1,0 +1,19 @@
+.ak-shell {
+  display: flex;
+  min-height: 100vh;
+}
+.ak-shell__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ak-shell__content {
+  padding: 24px 28px;
+  flex: 1;
+  max-width: 1360px;
+  width: 100%;
+}
+.ak-filters {
+  padding-top: 18px;
+}

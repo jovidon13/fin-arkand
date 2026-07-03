@@ -52,7 +52,9 @@ export interface TransactionFilters {
   date_from?: string;
   date_to?: string;
   search?: string;
+  ordering?: string;
   page?: number;
+  page_size?: number;
 }
 
 export interface ProfitRow {

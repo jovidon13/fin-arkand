@@ -1,0 +1,36 @@
+.ak-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--crimson-950), var(--ink));
+  padding: 20px;
+}
+.ak-login__card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 36px 32px;
+  width: 100%;
+  max-width: 380px;
+}
+.ak-login__brand {
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  font-size: 24px;
+  color: var(--brand);
+}
+.ak-login__sub {
+  color: var(--n-500);
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+.ak-login__title {
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+.ak-login__submit {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
