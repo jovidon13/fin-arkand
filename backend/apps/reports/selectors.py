@@ -64,16 +64,36 @@ def payroll_report(*, year: int | None = None, month: int | None = None) -> dict
 
 def dashboard(*, date_from: dt.date | None = None, date_to: dt.date | None = None) -> dict:
     """High-level KPIs for the owner/finance dashboard."""
+    from django.utils import timezone
+
     pnl_data = pnl(date_from=date_from, date_to=date_to)
     cash_data = cash_report(date_from=date_from, date_to=date_to)
     settle_data = settlements_report(date_from=date_from, date_to=date_to)
     fund = payroll_selectors.payroll_fund()
+
+    # 📈 Доходы / 📉 Расходы / 💎 Чистая прибыль ЗА СЕГОДНЯ — always today's
+    # numbers regardless of the selected period.
+    today = timezone.localdate()
+    today_totals = finance_selectors.business_totals(date_from=today, date_to=today)
+
+    external = settlements_selectors.external_summary()
+
     return {
         "income": pnl_data["consolidated"]["income"],
         "expense": pnl_data["consolidated"]["expense"],
         "profit": pnl_data["consolidated"]["profit"],
+        "today": {
+            "income": today_totals["income"],
+            "expense": today_totals["expense"],
+            "profit": today_totals["profit"],
+        },
         "cash_balance": cash_data["total_balance"],
         "open_debts": settle_data["total_outstanding"],
         "payroll_fund": fund,
         "by_business": pnl_data["by_business"],
+        # Дебиторка / кредиторка с внешними контрагентами
+        "receivables_total": external["total_receivable"],
+        "payables_total": external["total_payable"],
+        "receivables": external["receivables"],
+        "payables": external["payables"],
     }

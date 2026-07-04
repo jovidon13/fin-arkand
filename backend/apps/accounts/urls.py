@@ -7,6 +7,7 @@ from .views import (
     RoleViewSet,
     UserViewSet,
     me_view,
+    owners_view,
 )
 
 router = DefaultRouter(trailing_slash=False)
@@ -17,5 +18,6 @@ urlpatterns = [
     path("auth/token", ArkandTokenObtainPairView.as_view(), name="token-obtain"),
     path("auth/token/refresh", TokenRefreshView.as_view(), name="token-refresh"),
     path("auth/me", me_view, name="auth-me"),
+    path("owners", owners_view, name="owners"),
     *router.urls,
 ]

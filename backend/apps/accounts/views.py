@@ -4,8 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Role, User
-from .permissions import IsAdminRole
+from .models import Role, RoleCode, User
+from .permissions import IsAdminRole, IsFinanceStaff
 from .serializers import (
     ArkandTokenObtainPairSerializer,
     MeSerializer,
@@ -23,6 +23,22 @@ class ArkandTokenObtainPairView(TokenObtainPairView):
 def me_view(request):
     """Current authenticated user profile + capabilities."""
     return Response(MeSerializer(request.user).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsFinanceStaff])
+def owners_view(request):
+    """Руководители (владельцы) — for the «выдача руководителю» recipient picker.
+
+    Readable by all finance staff (not just admins) since accountants create
+    disbursements. Returns a lightweight id/name list."""
+    owners = User.objects.filter(role__code=RoleCode.OWNER, is_active=True).order_by(
+        "first_name", "last_name", "username"
+    )
+    return Response([
+        {"id": u.id, "full_name": u.get_full_name() or u.username, "username": u.username}
+        for u in owners
+    ])
 
 
 class UserViewSet(viewsets.ModelViewSet):

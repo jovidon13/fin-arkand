@@ -48,7 +48,7 @@ export function useCreateTransaction() {
   });
 }
 
-function useTxAction(action: "confirm" | "reject" | "void") {
+function useTxAction(action: "check" | "confirm" | "reject" | "void") {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
@@ -62,6 +62,7 @@ function useTxAction(action: "confirm" | "reject" | "void") {
   });
 }
 
+export const useCheckTransaction = () => useTxAction("check");
 export const useConfirmTransaction = () => useTxAction("confirm");
 export const useRejectTransaction = () => useTxAction("reject");
 export const useVoidTransaction = () => useTxAction("void");

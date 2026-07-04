@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 
+import { AddOperationFab } from "@/widgets/add-operation";
 import { Sidebar } from "@/widgets/sidebar";
 import { Topbar } from "@/widgets/topbar";
 
@@ -15,6 +16,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <AddOperationFab />
     </div>
   );
 }

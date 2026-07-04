@@ -1,5 +1,6 @@
 export type {
   DashboardData,
+  ExternalDebtRow,
   BusinessProfitRow,
   PnlReport,
   CashReport,

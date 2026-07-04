@@ -12,7 +12,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { useDashboard } from "@/entities/report";
+import { useDashboard, type ExternalDebtRow } from "@/entities/report";
 import { formatMoney } from "@/shared/lib";
 import { Card, ErrorState, Loading, Money, PageHeader, Stat, StatGrid } from "@/shared/ui";
 import { PeriodFilter, type Period } from "@/widgets/period-filter";
@@ -41,6 +41,25 @@ export function DashboardPage() {
   return (
     <>
       <PageHeader title={t("nav.dashboard")} subtitle={t("reports.consolidated")} />
+
+      {data && (
+        <StatGrid>
+          <Stat
+            label={"📈 " + t("dashboard.income_today")}
+            value={<Money value={data.today.income} colored={false} />}
+            color="var(--money-in)"
+          />
+          <Stat
+            label={"📉 " + t("dashboard.expense_today")}
+            value={<Money value={data.today.expense} colored={false} />}
+            color="var(--money-out)"
+          />
+          <Stat
+            label={"💎 " + t("dashboard.profit_today")}
+            value={<Money value={data.today.profit} />}
+          />
+        </StatGrid>
+      )}
 
       <PeriodFilter value={period} onChange={setPeriod} />
 
@@ -80,8 +99,92 @@ export function DashboardPage() {
               </ResponsiveContainer>
             </div>
           </Card>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 16,
+              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            }}
+          >
+            <Card header={`💰 ${t("dashboard.receivables")}`}>
+              <DebtList
+                rows={data.receivables}
+                total={data.receivables_total}
+                totalLabel={t("common.total")}
+                empty={t("common.no_data")}
+                tone="var(--money-in)"
+              />
+            </Card>
+            <Card header={`📕 ${t("dashboard.payables")}`}>
+              <DebtList
+                rows={data.payables}
+                total={data.payables_total}
+                totalLabel={t("common.total")}
+                empty={t("common.no_data")}
+                tone="var(--money-out)"
+              />
+            </Card>
+          </div>
         </>
       )}
     </>
+  );
+}
+
+function DebtList({
+  rows,
+  total,
+  totalLabel,
+  empty,
+  tone,
+}: {
+  rows: ExternalDebtRow[];
+  total: string;
+  totalLabel: string;
+  empty: string;
+  tone: string;
+}) {
+  if (rows.length === 0) return <div style={{ color: "var(--n-500)", padding: "8px 0" }}>{empty}</div>;
+  return (
+    <div>
+      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {rows.map((r) => (
+          <li
+            key={r.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "9px 0",
+              borderBottom: "1px solid var(--n-100)",
+            }}
+          >
+            <span style={{ fontWeight: 600, color: "var(--n-800)" }}>
+              {r.counterparty}
+              {r.business_name && (
+                <span style={{ color: "var(--n-500)", fontWeight: 400 }}> · {r.business_name}</span>
+              )}
+            </span>
+            <span style={{ fontWeight: 700, color: tone, whiteSpace: "nowrap" }}>
+              <Money value={r.outstanding} colored={false} />
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          paddingTop: 10,
+          fontWeight: 700,
+        }}
+      >
+        <span>{totalLabel}</span>
+        <span style={{ color: tone }}>
+          <Money value={total} colored={false} />
+        </span>
+      </div>
+    </div>
   );
 }

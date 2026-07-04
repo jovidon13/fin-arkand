@@ -2,7 +2,14 @@ import { z } from "zod";
 
 export const txKinds = ["income", "expense"] as const;
 export const payMethods = ["cash", "transfer"] as const;
-export const txStatuses = ["draft", "pending", "confirmed", "rejected", "void"] as const;
+export const txStatuses = [
+  "draft",
+  "pending",
+  "awaiting_owner",
+  "confirmed",
+  "rejected",
+  "void",
+] as const;
 
 export const transactionSchema = z.object({
   id: z.number(),
@@ -24,6 +31,15 @@ export const transactionSchema = z.object({
   note: z.string(),
   is_barter: z.boolean(),
   source: z.string(),
+  is_disbursement: z.boolean().optional(),
+  recipient_manager: z.number().nullable().optional(),
+  recipient_manager_name: z.string().nullable().optional(),
+  requires_owner: z.boolean().optional(),
+  created_by: z.number().nullable().optional(),
+  created_by_name: z.string().nullable().optional(),
+  checked_by: z.number().nullable().optional(),
+  checked_by_name: z.string().nullable().optional(),
+  checked_at: z.string().nullable().optional(),
   confirmed_by: z.number().nullable(),
   confirmed_by_name: z.string().nullable().optional(),
   confirmed_at: z.string().nullable(),
@@ -42,6 +58,8 @@ export interface TransactionCreate {
   counterparty?: string;
   note?: string;
   is_barter?: boolean;
+  is_disbursement?: boolean;
+  recipient_manager?: number | null;
 }
 
 export interface TransactionFilters {

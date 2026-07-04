@@ -6,14 +6,33 @@ export interface BusinessProfitRow {
   profit: string;
 }
 
+export interface ExternalDebtRow {
+  id: number;
+  direction: "receivable" | "payable";
+  counterparty: string;
+  business_id: number | null;
+  business_name: string | null;
+  amount: string;
+  outstanding: string;
+  status: string;
+  occurred_on: string;
+  due_on: string | null;
+  note: string;
+}
+
 export interface DashboardData {
   income: string;
   expense: string;
   profit: string;
+  today: { income: string; expense: string; profit: string };
   cash_balance: string;
   open_debts: string;
   payroll_fund: string;
   by_business: BusinessProfitRow[];
+  receivables_total: string;
+  payables_total: string;
+  receivables: ExternalDebtRow[];
+  payables: ExternalDebtRow[];
 }
 
 export interface PnlReport {

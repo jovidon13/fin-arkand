@@ -58,6 +58,7 @@ CATEGORIES = [
     ("electricity", "Электроэнергия"),
     ("repair", "Ремонт техники"),
     ("transport", "Транспорт"),
+    ("disbursement", "Выдача руководителю"),
     ("other", "Прочее"),
 ]
 
@@ -91,6 +92,7 @@ class Command(BaseCommand):
         registers = self._cash(businesses, users)
         self._cash_ops(registers, users)
         self._settlements(businesses, admin)
+        self._external_debts(businesses, users)
         self._payroll(businesses, admin)
         self._approvals(businesses, cats, users)
 
@@ -101,11 +103,13 @@ class Command(BaseCommand):
     def _reset(self) -> None:
         from apps.approvals.models import ApprovalVote
         from apps.cash.models import CashOperation
+        from apps.documents.models import OperationDocument
         from apps.payroll.models import PayrollItem, PayrollRun
-        from apps.settlements.models import Debt, Settlement, Transfer
+        from apps.settlements.models import Debt, ExternalDebt, Settlement, Transfer
 
-        for model in (Settlement, Debt, Transfer, CashOperation, PayrollItem,
-                      PayrollRun, ApprovalVote, ApprovalRequest, Transaction):
+        for model in (OperationDocument, Settlement, Debt, ExternalDebt, Transfer,
+                      CashOperation, PayrollItem, PayrollRun, ApprovalVote,
+                      ApprovalRequest, Transaction):
             model.objects.all().delete()
             if hasattr(model, "all_objects"):
                 model.all_objects.all().delete()
@@ -176,6 +180,10 @@ class Command(BaseCommand):
                               businesses["developer"]),
             "cashier_des": mk("cashier_des", "Кассир", "Проектная", RoleCode.CASHIER,
                               businesses["design"]),
+            "cashier_con": mk("cashier_con", "Кассир", "Бетонный завод", RoleCode.CASHIER,
+                              businesses["concrete"]),
+            "cashier_cru": mk("cashier_cru", "Кассир", "Щебёночный завод", RoleCode.CASHIER,
+                              businesses["crushing"]),
         }
         admin, created = User.objects.get_or_create(
             username="admin",
@@ -194,14 +202,21 @@ class Command(BaseCommand):
         buh = users["buh1"]
 
         def tx(biz, kind, amount, cat=None, method=PayMethod.CASH, status=TxStatus.CONFIRMED,
-               days=0, counterparty="", barter=False, source=""):
+               days=0, counterparty="", barter=False, source="", is_disbursement=False,
+               recipient=None):
             return finance_services.create_transaction(
                 business_id=businesses[biz].id, kind=kind, amount=Decimal(amount),
                 method=method, occurred_on=today - dt.timedelta(days=days), actor=buh,
                 category_id=cats[cat].id if cat else None, counterparty=counterparty,
                 is_barter=barter, source=source, status=status,
+                is_disbursement=is_disbursement,
+                recipient_manager_id=recipient.id if recipient else None,
             )
 
+        # 📈 Сегодняшние подтверждённые операции — для плиток «за сегодня»
+        tx("concrete", TxKind.INCOME, 96000, counterparty="Отгрузка бетона (сегодня)", days=0)
+        tx("crushing", TxKind.EXPENSE, 22750, cat="transport", counterparty="Солярка (сегодня)",
+           days=0)
         # Доходы
         tx("developer", TxKind.INCOME, 284500, method=PayMethod.TRANSFER,
            counterparty="Продажа квартир", source="external_sales", days=3)
@@ -218,6 +233,19 @@ class Command(BaseCommand):
         tx("crushing", TxKind.EXPENSE, 22750, cat="transport", counterparty="Солярка", days=3)
         tx("design", TxKind.EXPENSE, 12000, cat="salary", days=7)
         tx("concrete", TxKind.EXPENSE, 8600, cat="repair", counterparty="Ремонт БСУ", days=8)
+        # 💵 Выдача денег руководителю (owner) — Сохиб получил на оперативные расходы.
+        tx("developer", TxKind.EXPENSE, 25000, is_disbursement=True,
+           recipient=users["sohib"], counterparty="Выдача руководителю", days=1)
+
+        # Двухэтапное согласование в действии (менеджер → бухгалтер → владелец):
+        # мелкая операция ждёт проверки бухгалтера …
+        tx("design", TxKind.EXPENSE, 6000, cat="transport", counterparty="ГСМ",
+           status=TxStatus.PENDING, days=0)
+        # … а крупный расход застройщика (выше лимита 50 000) прошёл проверку
+        # бухгалтера и теперь ждёт подтверждения владельца.
+        big = tx("developer", TxKind.EXPENSE, 88000, cat="materials",
+                 counterparty="Партия арматуры", status=TxStatus.PENDING, days=0)
+        finance_services.check_transaction(tx_id=big.id, actor=buh)
 
     def _cash(self, businesses, users) -> dict[str, CashRegister]:
         reg_dev, _ = CashRegister.objects.get_or_create(
@@ -230,9 +258,21 @@ class Command(BaseCommand):
             defaults={"business": businesses["design"], "name": "Касса проектной",
                       "turnover_limit": Decimal(80000)},
         )
+        reg_con, _ = CashRegister.objects.get_or_create(
+            code="cash-concrete",
+            defaults={"business": businesses["concrete"], "name": "Касса бетонного завода",
+                      "turnover_limit": Decimal(120000)},
+        )
+        reg_cru, _ = CashRegister.objects.get_or_create(
+            code="cash-crushing",
+            defaults={"business": businesses["crushing"], "name": "Касса щебёночного завода",
+                      "turnover_limit": Decimal(120000)},
+        )
         reg_dev.responsible.add(users["cashier_dev"])
         reg_des.responsible.add(users["cashier_des"])
-        return {"dev": reg_dev, "des": reg_des}
+        reg_con.responsible.add(users["cashier_con"])
+        reg_cru.responsible.add(users["cashier_cru"])
+        return {"dev": reg_dev, "des": reg_des, "con": reg_con, "cru": reg_cru}
 
     def _cash_ops(self, registers, users) -> None:
         today = timezone.now().date()
@@ -250,6 +290,17 @@ class Command(BaseCommand):
             register_id=registers["des"].id, kind=TxKind.INCOME, amount=Decimal(20000),
             method=PayMethod.CASH, occurred_on=today, actor=users["cashier_des"],
             counterparty="Оплата надзора",
+        )
+        # Кассиры бетонного и щебёночного заводов ведут свою часть (несколько касс).
+        cash_services.add_operation(
+            register_id=registers["con"].id, kind=TxKind.INCOME, amount=Decimal(64000),
+            method=PayMethod.CASH, occurred_on=today, actor=users["cashier_con"],
+            counterparty="Отгрузка бетона М300",
+        )
+        cash_services.add_operation(
+            register_id=registers["cru"].id, kind=TxKind.INCOME, amount=Decimal(38500),
+            method=PayMethod.CASH, occurred_on=today - dt.timedelta(days=1),
+            actor=users["cashier_cru"], counterparty="Щебень фр. 5-20",
         )
 
     def _settlements(self, businesses, admin) -> None:
@@ -275,6 +326,29 @@ class Command(BaseCommand):
             description="Товарный бетон на объект ЖК Сафо",
         )
         settlement_services.approve_transfer(transfer_id=t2.id, actor=admin)
+
+    def _external_debts(self, businesses, users) -> None:
+        """Дебиторка / кредиторка с внешними контрагентами (кто должен компании /
+        кому должна компания) — отдельный блок на дашборде."""
+        from apps.core.enums import ExternalDebtDirection
+        today = timezone.now().date()
+        chief = users["chief"]
+
+        def ext(direction, counterparty, amount, biz=None, days=0):
+            return settlement_services.create_external_debt(
+                direction=direction, counterparty=counterparty, amount=Decimal(amount),
+                occurred_on=today - dt.timedelta(days=days), actor=chief,
+                business_id=businesses[biz].id if biz else None,
+            )
+
+        # Кто должен компании (дебиторка)
+        ext(ExternalDebtDirection.RECEIVABLE, "ООО «Стройка»", 480000, biz="concrete", days=12)
+        ext(ExternalDebtDirection.RECEIVABLE, "Арканд Девелопмент", 1200000,
+            biz="developer", days=20)
+        ext(ExternalDebtDirection.RECEIVABLE, "Частный клиент", 30000, biz="crushing", days=5)
+        # Кому должна компания (кредиторка)
+        ext(ExternalDebtDirection.PAYABLE, "Цементный завод", 650000, biz="concrete", days=9)
+        ext(ExternalDebtDirection.PAYABLE, "Поставщик топлива", 220000, biz="crushing", days=7)
 
     def _payroll(self, businesses, admin) -> None:
         # Схемы бонусов (ЗРП-04 / ЗРП-05)
@@ -347,5 +421,7 @@ class Command(BaseCommand):
             "  buh1 / buh2  — Бухгалтеры",
             "  cashier_dev  — Кассир застройщика",
             "  cashier_des  — Кассир проектной",
+            "  cashier_con  — Кассир бетонного завода",
+            "  cashier_cru  — Кассир щебёночного завода",
         ]:
             self.stdout.write(line)

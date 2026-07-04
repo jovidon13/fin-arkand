@@ -55,7 +55,8 @@
   },
   "status": {
     "draft": "Черновик",
-    "pending": "Ожидает",
+    "pending": "Ожидает проверки бухгалтера",
+    "awaiting_owner": "Ожидает подтверждения владельца",
     "confirmed": "Подтверждён",
     "rejected": "Отклонён",
     "void": "Аннулирован",
@@ -86,8 +87,38 @@
     "subtitle": "Приходы и расходы по бизнесам",
     "add_income": "Добавить приход",
     "add_expense": "Добавить расход",
+    "add_operation": "Добавить операцию",
+    "add_disbursement": "Выдача руководителю",
+    "disbursement": "Выдача руководителю",
+    "recipient_manager": "Руководитель — получатель",
+    "documents": "Фото документов (чек, счёт, договор, накладная)",
+    "created_by": "Провёл",
+    "checked_by": "Проверил",
+    "check": "Проверить",
     "confirm_tx": "Подтвердить операцию",
-    "counterparty": "Контрагент"
+    "counterparty": "Контрагент",
+    "msg_fill": "Заполните бизнес и сумму",
+    "msg_pick_recipient": "Выберите руководителя-получателя",
+    "msg_income_added": "Приход добавлен",
+    "msg_expense_added": "Расход добавлен",
+    "msg_disbursement_added": "Выдача проведена",
+    "msg_checked": "Проверено бухгалтером",
+    "msg_confirmed": "Подтверждено владельцем",
+    "msg_rejected": "Отклонено"
+  },
+  "dashboard": {
+    "income_today": "Доходы за сегодня",
+    "expense_today": "Расходы за сегодня",
+    "profit_today": "Чистая прибыль",
+    "receivables": "Дебиторка · нам должны",
+    "payables": "Кредиторка · мы должны"
+  },
+  "docs": {
+    "receipt": "Чек",
+    "invoice": "Счёт",
+    "contract": "Договор",
+    "waybill": "Накладная",
+    "other": "Прочее"
   },
   "cash": {
     "title": "Кассы",

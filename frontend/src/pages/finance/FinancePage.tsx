@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/app/providers";
 import { useBusinesses } from "@/entities/business";
 import {
+  useCheckTransaction,
   useConfirmTransaction,
   useRejectTransaction,
   useProfitByBusiness,
@@ -35,6 +36,7 @@ export function FinancePage() {
   const toast = useToast();
   const { user } = useAuth();
   const canManage = user?.can_manage_finance ?? false;
+  const isOwner = user?.is_owner ?? false;
 
   const [period, setPeriod] = useState<Period>({});
   const [business, setBusiness] = useState<number | "">("");
@@ -52,6 +54,7 @@ export function FinancePage() {
   const txs = useTransactions(filters);
   const profit = useProfitByBusiness(period);
 
+  const check = useCheckTransaction();
   const confirm = useConfirmTransaction();
   const reject = useRejectTransaction();
 
@@ -79,14 +82,22 @@ export function FinancePage() {
       header: t("common.category"),
       render: (r) => r.category_name ?? r.kind_display,
     },
-    { key: "counterparty", header: t("finance.counterparty"), render: (r) => r.counterparty || "—" },
+    {
+      key: "counterparty",
+      header: t("finance.counterparty"),
+      render: (r) =>
+        r.is_disbursement && r.recipient_manager_name
+          ? `💵 ${r.recipient_manager_name}`
+          : r.counterparty || "—",
+    },
     {
       key: "amount",
       header: t("common.amount"),
       numeric: true,
       render: (r) => <Money value={r.amount} kind={r.kind} />,
     },
-    { key: "method", header: t("common.method"), render: (r) => r.method_display },
+    { key: "created_by", header: t("finance.created_by"), render: (r) => r.created_by_name || "—" },
+    { key: "checked_by", header: t("finance.checked_by"), render: (r) => r.checked_by_name || "—" },
     {
       key: "status",
       header: t("common.status"),
@@ -95,23 +106,35 @@ export function FinancePage() {
     {
       key: "actions",
       header: t("common.actions"),
-      render: (r) =>
-        canManage && r.status === "pending" ? (
-          <div style={{ display: "flex", gap: 6 }}>
-            <Button
-              size="sm"
-              variant="success"
-              onClick={() => act(confirm, r.id, "Подтверждено")}
-            >
-              {t("common.confirm")}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => act(reject, r.id, "Отклонено")}>
-              {t("common.reject")}
-            </Button>
-          </div>
-        ) : (
-          "—"
-        ),
+      render: (r) => {
+        // Шаг бухгалтера: проверить операцию, ожидающую проверки.
+        if (canManage && r.status === "pending") {
+          return (
+            <div style={{ display: "flex", gap: 6 }}>
+              <Button size="sm" variant="success" onClick={() => act(check, r.id, t("finance.msg_checked"))}>
+                {t("finance.check")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => act(reject, r.id, t("finance.msg_rejected"))}>
+                {t("common.reject")}
+              </Button>
+            </div>
+          );
+        }
+        // Шаг владельца: подтвердить крупную операцию.
+        if ((isOwner || canManage) && r.status === "awaiting_owner") {
+          return (
+            <div style={{ display: "flex", gap: 6 }}>
+              <Button size="sm" variant="success" onClick={() => act(confirm, r.id, t("finance.msg_confirmed"))}>
+                {t("common.confirm")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => act(reject, r.id, t("finance.msg_rejected"))}>
+                {t("common.reject")}
+              </Button>
+            </div>
+          );
+        }
+        return "—";
+      },
     },
   ];
 

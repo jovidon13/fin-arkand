@@ -13,7 +13,12 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.core.enums import DebtStatus, SettlementKind, TransferStatus
+from apps.core.enums import (
+    DebtStatus,
+    ExternalDebtDirection,
+    SettlementKind,
+    TransferStatus,
+)
 from apps.core.models import MoneyBaseModel
 
 
@@ -130,6 +135,65 @@ class Debt(MoneyBaseModel):
             f"{self.debtor_id}⇒{self.creditor_id} "
             f"{self.outstanding}/{self.amount} [{self.status}]"
         )
+
+    @property
+    def is_settled(self) -> bool:
+        return self.status == DebtStatus.SETTLED
+
+
+class ExternalDebt(MoneyBaseModel):
+    """Дебиторская / кредиторская задолженность с ВНЕШНИМ контрагентом.
+
+    Unlike :class:`Debt` (долг между своими бизнесами), this tracks money owed by
+    or to outside parties — «кто должен компании» и «кому должна компания».
+    ``direction`` splits the two sides; ``outstanding`` is the remaining balance
+    a partial payment reduces toward zero. Money is Decimal; records are
+    soft-deleted, never physically removed.
+    """
+
+    direction = models.CharField(
+        max_length=16, choices=ExternalDebtDirection.choices, db_index=True
+    )
+    counterparty = models.CharField(max_length=200, help_text=_("Внешний контрагент"))
+    # Which holding business the debt belongs to (optional — «на весь холдинг»).
+    business = models.ForeignKey(
+        "core.Business", null=True, blank=True, on_delete=models.PROTECT,
+        related_name="external_debts",
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)  # original
+    outstanding = models.DecimalField(max_digits=14, decimal_places=2)
+    status = models.CharField(
+        max_length=20, choices=DebtStatus.choices,
+        default=DebtStatus.OPEN, db_index=True,
+    )
+    occurred_on = models.DateField(db_index=True)
+    due_on = models.DateField(null=True, blank=True)
+    note = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
+        related_name="created_external_debts",
+    )
+
+    class Meta:
+        verbose_name = _("Внешняя задолженность")
+        verbose_name_plural = _("Внешние задолженности")
+        ordering = ["-occurred_on", "-created_at"]
+        indexes = [
+            models.Index(fields=["direction", "status"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(amount__gt=0), name="settlements_extdebt_amount_positive"
+            ),
+            models.CheckConstraint(
+                check=models.Q(outstanding__gte=0),
+                name="settlements_extdebt_outstanding_nonneg",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_direction_display()}: {self.counterparty} {self.outstanding}"
 
     @property
     def is_settled(self) -> bool:

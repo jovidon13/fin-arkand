@@ -1,1 +1,1 @@
-export { AddTransactionModal } from "./AddTransactionModal";
+export { AddTransactionModal, type OperationKind } from "./AddTransactionModal";

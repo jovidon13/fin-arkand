@@ -55,7 +55,8 @@
   },
   "status": {
     "draft": "Лоиҳа",
-    "pending": "Дар интизорӣ",
+    "pending": "Дар интизори санҷиши муҳосиб",
+    "awaiting_owner": "Дар интизори тасдиқи соҳиб",
     "confirmed": "Тасдиқшуда",
     "rejected": "Радшуда",
     "void": "Бекоршуда",
@@ -87,7 +88,23 @@
     "add_income": "Иловаи даромад",
     "add_expense": "Иловаи хароҷот",
     "confirm_tx": "Тасдиқи амалиёт",
-    "counterparty": "Тарафи муқобил"
+    "counterparty": "Тарафи муқобил",
+    "add_operation": "Иловаи амалиёт",
+    "add_disbursement": "Додани пул ба роҳбар",
+    "disbursement": "Додани пул ба роҳбар",
+    "recipient_manager": "Роҳбар — гиранда",
+    "documents": "Аксҳои ҳуҷҷатҳо (чек, ҳисоб, шартнома, борхат)",
+    "created_by": "Гузаронд",
+    "checked_by": "Санҷид",
+    "check": "Санҷидан",
+    "msg_fill": "Бизнес ва маблағро пур кунед",
+    "msg_pick_recipient": "Роҳбар-гирандаро интихоб кунед",
+    "msg_income_added": "Даромад илова шуд",
+    "msg_expense_added": "Хароҷот илова шуд",
+    "msg_disbursement_added": "Додани пул гузаронида шуд",
+    "msg_checked": "Аз ҷониби муҳосиб санҷида шуд",
+    "msg_confirmed": "Аз ҷониби соҳиб тасдиқ шуд",
+    "msg_rejected": "Рад карда шуд"
   },
   "cash": {
     "title": "Кассаҳо",
@@ -174,5 +191,19 @@
     "payroll": "Маош",
     "by_business": "Аз рӯи бизнесҳо",
     "consolidated": "Умумӣ аз рӯи холдинг"
+  },
+  "dashboard": {
+    "income_today": "Даромад барои имрӯз",
+    "expense_today": "Хароҷот барои имрӯз",
+    "profit_today": "Фоидаи соф",
+    "receivables": "Дебитор · ба мо қарздоранд",
+    "payables": "Кредитор · мо қарздорем"
+  },
+  "docs": {
+    "receipt": "Чек",
+    "invoice": "Ҳисоб",
+    "contract": "Шартнома",
+    "waybill": "Борхат",
+    "other": "Дигар"
   }
 }

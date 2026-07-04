@@ -7,11 +7,14 @@ from apps.core.selectors import parse_period
 
 from . import selectors, services
 from .filters import DebtFilter, TransferFilter
-from .models import Debt, Settlement, Transfer
+from .models import Debt, ExternalDebt, Settlement, Transfer
 from .permissions import CanManageFinance, IsFinanceStaff
 from .serializers import (
     ApproveSerializer,
     DebtSerializer,
+    ExternalDebtCreateSerializer,
+    ExternalDebtPaySerializer,
+    ExternalDebtSerializer,
     RejectSerializer,
     SettlementSerializer,
     SettleSerializer,
@@ -141,3 +144,62 @@ class SettlementViewSet(
 
     def get_queryset(self):
         return selectors.settlements_qs()
+
+
+class ExternalDebtViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Дебиторка / кредиторка с внешними контрагентами (кто должен компании /
+    кому должна компания). Read for finance staff; write for finance managers."""
+
+    queryset = ExternalDebt.objects.none()
+    serializer_class = ExternalDebtSerializer
+    filterset_fields = ["direction", "status", "business"]
+    search_fields = ["counterparty", "note"]
+    ordering_fields = ["occurred_on", "amount", "outstanding", "created_at"]
+
+    def get_queryset(self):
+        return selectors.external_debts_qs()
+
+    def get_permissions(self):
+        if self.action in ("create", "pay"):
+            return [CanManageFinance()]
+        return [IsFinanceStaff()]
+
+    def create(self, request, *args, **kwargs):
+        payload = ExternalDebtCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        debt = services.create_external_debt(
+            direction=data["direction"],
+            counterparty=data["counterparty"],
+            amount=data["amount"],
+            occurred_on=data["occurred_on"],
+            actor=request.user,
+            business_id=data.get("business"),
+            due_on=data.get("due_on"),
+            note=data["note"],
+            idempotency_key=request.headers.get("Idempotency-Key"),
+        )
+        return Response(ExternalDebtSerializer(debt).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def pay(self, request, pk=None):
+        """Record a (partial) payment — закрывается при расчёте."""
+        s = ExternalDebtPaySerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        data = s.validated_data
+        debt = services.pay_external_debt(
+            debt_id=pk, amount=data["amount"], actor=request.user,
+            occurred_on=data.get("occurred_on"), note=data["note"],
+        )
+        return Response(ExternalDebtSerializer(debt).data)
+
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Totals + both lists for the дебиторка dashboard block."""
+        from apps.core.money import stringify
+        return Response(stringify(selectors.external_summary()))

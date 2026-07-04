@@ -28,6 +28,8 @@ const STATUS_TONE: Record<string, Tone> = {
   confirmed: "success",
   rejected: "error",
   void: "neutral",
+  // transactions — второй шаг цепочки
+  awaiting_owner: "info",
   // debts
   open: "warning",
   partially_settled: "info",

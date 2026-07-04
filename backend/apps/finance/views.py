@@ -2,6 +2,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.accounts.permissions import IsOwner
 from apps.core.money import stringify
 from apps.core.selectors import parse_period
 
@@ -35,7 +36,11 @@ class TransactionViewSet(
         return selectors.transactions_qs()
 
     def get_permissions(self):
-        if self.action in ("create", "confirm", "reject", "void"):
+        # Owners give the final «крупная» confirmation (шаг владельца); финансисты
+        # create/check/reject/void and may also confirm directly.
+        if self.action == "confirm":
+            return [(CanManageFinance | IsOwner)()]
+        if self.action in ("create", "check", "reject", "void"):
             return [CanManageFinance()]
         return [IsFinanceStaff()]
 
@@ -56,10 +61,21 @@ class TransactionViewSet(
             note=data["note"],
             is_barter=data["is_barter"],
             source=data["source"],
+            is_disbursement=data["is_disbursement"],
+            recipient_manager_id=data.get("recipient_manager"),
             status=data["status"],
             idempotency_key=request.headers.get("Idempotency-Key"),
         )
         return Response(TransactionSerializer(tx).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def check(self, request, pk=None):
+        """Accountant check (проверил бухгалтер) — второй шаг цепочки."""
+        s = ConfirmSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        key = s.validated_data["idempotency_key"] or request.headers.get("Idempotency-Key")
+        tx = services.check_transaction(tx_id=pk, actor=request.user, idempotency_key=key)
+        return Response(TransactionSerializer(tx).data)
 
     @action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):

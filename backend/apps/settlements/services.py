@@ -23,7 +23,7 @@ from apps.core.exceptions import DomainError
 from apps.core.idempotency import run_idempotent
 from apps.core.money import ZERO, money
 
-from .models import Debt, Settlement, Transfer
+from .models import Debt, ExternalDebt, Settlement, Transfer
 
 
 def _transfer_snapshot(t: Transfer) -> dict:
@@ -330,3 +330,79 @@ def create_barter(
         is_barter=True,
         idempotency_key=idempotency_key,
     )
+
+
+# --------------------------------------------------------------------------- #
+# External receivables / payables (дебиторка / кредиторка с контрагентами)
+# --------------------------------------------------------------------------- #
+def _extdebt_snapshot(d: ExternalDebt) -> dict:
+    return {"outstanding": str(d.outstanding), "status": d.status}
+
+
+@transaction.atomic
+def create_external_debt(
+    *,
+    direction: str,
+    counterparty: str,
+    amount: Decimal,
+    occurred_on: dt.date,
+    actor,
+    business_id: int | None = None,
+    due_on: dt.date | None = None,
+    note: str = "",
+    idempotency_key: str | None = None,
+) -> ExternalDebt:
+    """Register an external receivable (нам должны) / payable (мы должны)."""
+    amount = money(amount)
+    if amount <= 0:
+        raise DomainError("amount_not_positive", "Сумма должна быть больше нуля")
+
+    def _create() -> ExternalDebt:
+        debt = ExternalDebt.objects.create(
+            direction=direction,
+            counterparty=counterparty,
+            business_id=business_id,
+            amount=amount,
+            outstanding=amount,
+            occurred_on=occurred_on,
+            due_on=due_on,
+            note=note,
+            created_by=actor if getattr(actor, "pk", None) else None,
+        )
+        AuditLog.record(actor, "extdebt.created", debt, after=_extdebt_snapshot(debt))
+        return debt
+
+    return run_idempotent(
+        scope="settlements.create_external_debt",
+        key=idempotency_key,
+        create=_create,
+        fetch=lambda pk: ExternalDebt.objects.get(pk=pk),
+    )
+
+
+@transaction.atomic
+def pay_external_debt(
+    *, debt_id: int, amount: Decimal, actor, occurred_on: dt.date | None = None,
+    note: str = "",
+) -> ExternalDebt:
+    """Record a (partial) payment against an external debt — reduces outstanding
+    toward zero and closes it at zero (закрывается при расчёте)."""
+    debt = ExternalDebt.objects.select_for_update().get(pk=debt_id)
+    if debt.status == DebtStatus.SETTLED:
+        return debt  # idempotent — already closed
+    amount = money(amount)
+    if amount <= 0:
+        raise DomainError("amount_not_positive", "Сумма должна быть больше нуля")
+    if amount > debt.outstanding:
+        raise DomainError("amount_exceeds_debt", "Сумма больше остатка долга")
+
+    before = _extdebt_snapshot(debt)
+    debt.outstanding = debt.outstanding - amount
+    if debt.outstanding == ZERO:
+        debt.status = DebtStatus.SETTLED
+    elif debt.outstanding < debt.amount:
+        debt.status = DebtStatus.PARTIALLY_SETTLED
+    debt.save(update_fields=["outstanding", "status", "updated_at"])
+    AuditLog.record(actor, "extdebt.paid", debt, before=before,
+                    after=_extdebt_snapshot(debt), meta={"amount": str(amount), "note": note})
+    return debt

@@ -24,10 +24,28 @@ class PayMethod(models.TextChoices):
 
 class TxStatus(models.TextChoices):
     DRAFT = "draft", _("Черновик")
-    PENDING = "pending", _("Ожидает подтверждения")
+    PENDING = "pending", _("Ожидает проверки бухгалтера")
+    AWAITING_OWNER = "awaiting_owner", _("Ожидает подтверждения владельца")
     CONFIRMED = "confirmed", _("Подтверждён")
     REJECTED = "rejected", _("Отклонён")
     VOID = "void", _("Аннулирован")
+
+
+class DocumentType(models.TextChoices):
+    """Photo/scan of a document attached to a money operation (фото документов)."""
+
+    RECEIPT = "receipt", _("Чек")
+    INVOICE = "invoice", _("Счёт")
+    CONTRACT = "contract", _("Договор")
+    WAYBILL = "waybill", _("Накладная")
+    OTHER = "other", _("Прочее")
+
+
+class ExternalDebtDirection(models.TextChoices):
+    """Дебиторская / кредиторская задолженность с внешними контрагентами."""
+
+    RECEIVABLE = "receivable", _("Нам должны")   # дебиторка — кто должен компании
+    PAYABLE = "payable", _("Мы должны")          # кредиторка — кому должна компания
 
 
 class DebtStatus(models.TextChoices):

@@ -46,13 +46,32 @@ class Transaction(MoneyBaseModel):
     # apartment-sales system enters the finance loop here (ЗАС-41 / ХОЛ-52).
     source = models.CharField(max_length=50, blank=True)
 
+    # «Выдача денег руководителю»: an expense handed to an owner/руководитель.
+    is_disbursement = models.BooleanField(
+        default=False, help_text=_("Выдача денег руководителю")
+    )
+    recipient_manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="received_disbursements",
+        help_text=_("Руководитель — получатель выдачи"),
+    )
+
+    # Two-stage approval: создал менеджер → проверил бухгалтер → подтвердил владелец.
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
         related_name="created_transactions",
+        help_text=_("Менеджер, создавший операцию"),
     )
+    checked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="checked_transactions",
+        help_text=_("Бухгалтер, проверивший операцию"),
+    )
+    checked_at = models.DateTimeField(null=True, blank=True)
     confirmed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
         related_name="confirmed_transactions",
+        help_text=_("Владелец, подтвердивший крупную операцию"),
     )
     confirmed_at = models.DateTimeField(null=True, blank=True)
 
@@ -77,6 +96,13 @@ class Transaction(MoneyBaseModel):
     @property
     def is_confirmed(self) -> bool:
         return self.status == TxStatus.CONFIRMED
+
+    @property
+    def requires_owner(self) -> bool:
+        """«Крупная» операция: сумма выше порога бизнеса (ХОЛ-21) требует
+        подтверждения владельца. Порог 0 = без ограничения (только бухгалтер)."""
+        limit = self.business.expense_limit if self.business_id else 0
+        return bool(limit and self.amount > limit)
 
     @property
     def signed_amount(self):

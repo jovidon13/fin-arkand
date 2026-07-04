@@ -33,6 +33,25 @@ export function useUsers(params: { role?: number; page?: number } = {}) {
   });
 }
 
+export interface Owner {
+  id: number;
+  full_name: string;
+  username: string;
+}
+
+/** Руководители (владельцы) — recipient picker for «выдача руководителю».
+ * Readable by finance staff (unlike the admin-only full user list). */
+export function useOwners() {
+  return useQuery({
+    queryKey: ["owners"],
+    queryFn: async () => {
+      const { data } = await api.get<Owner[]>("/owners");
+      return data;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useRoles() {
   return useQuery({
     queryKey: ["roles"],

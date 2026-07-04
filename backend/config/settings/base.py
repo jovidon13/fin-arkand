@@ -57,6 +57,7 @@ LOCAL_APPS = [
     "apps.payroll",
     "apps.approvals",
     "apps.reports",
+    "apps.documents",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -130,6 +131,11 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Uploaded operation documents (фото документов). Local FileSystemStorage now;
+# swap DEFAULT_FILE_STORAGE for an S3-compatible backend in prod later.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # WhiteNoise: compress + hash static files so they can be served with far-future
 # cache headers straight from the app (used in prod on Railway).

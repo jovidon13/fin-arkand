@@ -14,6 +14,7 @@ export {
   useTransactions,
   useProfitByBusiness,
   useCreateTransaction,
+  useCheckTransaction,
   useConfirmTransaction,
   useRejectTransaction,
   useVoidTransaction,
