@@ -40,7 +40,8 @@ class CashOperationSerializer(serializers.ModelSerializer):
         max_digits=14, decimal_places=2, read_only=True
     )
     created_by_name = PersonNameField("created_by")
-    documents_count = serializers.SerializerMethodField()
+    # Provided by an annotation in the viewset queryset (falls back to 0).
+    documents_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = CashOperation
@@ -51,9 +52,6 @@ class CashOperationSerializer(serializers.ModelSerializer):
             "created_by", "created_by_name", "documents_count",
             "finance_transaction", "created_at",
         ]
-
-    def get_documents_count(self, obj) -> int:
-        return obj.documents.count()
 
 
 class CashOperationCreateSerializer(serializers.Serializer):

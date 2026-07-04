@@ -22,7 +22,8 @@ class TransactionSerializer(serializers.ModelSerializer):
     confirmed_by_name = PersonNameField("confirmed_by")
     recipient_manager_name = PersonNameField("recipient_manager")
     requires_owner = serializers.BooleanField(read_only=True)
-    documents_count = serializers.SerializerMethodField()
+    # Provided by an annotation in the viewset queryset (falls back to 0).
+    documents_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Transaction
@@ -42,9 +43,6 @@ class TransactionSerializer(serializers.ModelSerializer):
             "status", "created_by", "checked_by", "checked_at",
             "confirmed_by", "confirmed_at",
         ]
-
-    def get_documents_count(self, obj) -> int:
-        return obj.documents.count()
 
 
 class TransactionCreateSerializer(serializers.Serializer):

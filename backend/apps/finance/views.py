@@ -1,3 +1,4 @@
+from django.db.models import Count
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
@@ -34,7 +35,8 @@ class TransactionViewSet(
     ordering_fields = ["occurred_on", "amount", "created_at"]
 
     def get_queryset(self):
-        return selectors.transactions_qs()
+        # Annotate documents count once (avoids an N+1 count per row in lists).
+        return selectors.transactions_qs().annotate(documents_count=Count("documents"))
 
     def get_permissions(self):
         # Owners give the final «крупная» confirmation (шаг владельца); финансисты

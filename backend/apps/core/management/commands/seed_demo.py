@@ -247,6 +247,31 @@ class Command(BaseCommand):
                  counterparty="Партия арматуры", status=TxStatus.PENDING, days=0)
         finance_services.check_transaction(tx_id=big.id, actor=buh)
 
+        # Дополнительная история за месяц по всем бизнесам — чтобы отчёты, графики
+        # и таблицы были наполнены данными (детерминированно, без random).
+        extra = [
+            # biz, kind, amount, cat, days, counterparty
+            ("developer", TxKind.INCOME, 190000, None, 10, "Продажа квартиры"),
+            ("developer", TxKind.EXPENSE, 43000, "materials", 12, "Кирпич"),
+            ("developer", TxKind.EXPENSE, 15500, "transport", 14, "Доставка"),
+            ("developer", TxKind.INCOME, 220000, None, 18, "Продажа квартиры"),
+            ("concrete", TxKind.INCOME, 78000, None, 9, "Отгрузка бетона М250"),
+            ("concrete", TxKind.INCOME, 61000, None, 15, "Отгрузка бетона М300"),
+            ("concrete", TxKind.EXPENSE, 26000, "materials", 11, "Цемент навалом"),
+            ("concrete", TxKind.EXPENSE, 9400, "electricity", 16, "Электроэнергия БСУ"),
+            ("crushing", TxKind.INCOME, 47000, None, 8, "Щебень фр. 20-40"),
+            ("crushing", TxKind.INCOME, 39500, None, 13, "Песок строительный"),
+            ("crushing", TxKind.EXPENSE, 31000, "transport", 10, "Солярка"),
+            ("crushing", TxKind.EXPENSE, 12800, "electricity", 17, "Электричество дробилки"),
+            ("design", TxKind.INCOME, 55000, None, 6, "Договор 50/30/20 — этап 1"),
+            ("design", TxKind.INCOME, 33000, None, 19, "Авторский надзор"),
+            ("design", TxKind.EXPENSE, 18000, "salary", 12, "Зарплата проектировщиков"),
+            ("supply", TxKind.EXPENSE, 21000, "materials", 7, "Централизованная закупка"),
+        ]
+        for biz, kind, amount, cat, days, cp in extra:
+            method = PayMethod.TRANSFER if kind == TxKind.INCOME and days % 2 == 0 else PayMethod.CASH
+            tx(biz, kind, amount, cat=cat, method=method, days=days, counterparty=cp)
+
     def _cash(self, businesses, users) -> dict[str, CashRegister]:
         # Единый источник касс/кассиров по направлениям (изоляция по направлению,
         # КАС-04). Та же логика доступна на проде командой `provision_cashiers`.
@@ -307,6 +332,33 @@ class Command(BaseCommand):
             method=PayMethod.CASH, occurred_on=today, actor=cashier_fin,
             counterparty="Инкассация из касс направлений",
         )
+
+        # Наполняем каждую кассу историей за неделю (у каждого кассира — своя
+        # часть), чтобы у любого кассира на «Кассах» были данные.
+        by_reg = {
+            "dev": users["cashier_dev"], "des": users["cashier_des"],
+            "con": users["cashier_con"], "cru": users["cashier_cru"],
+            "dev_sales": cashier_sales, "sup": cashier_sup, "fin": cashier_fin,
+        }
+        extra_ops = [
+            ("dev", TxKind.INCOME, 30000, 4, "Доплата по договору"),
+            ("dev", TxKind.EXPENSE, 8000, 5, "Канцелярия"),
+            ("des", TxKind.INCOME, 15000, 3, "Оплата надзора"),
+            ("des", TxKind.EXPENSE, 5000, 6, "Печать чертежей"),
+            ("con", TxKind.INCOME, 22000, 2, "Отгрузка бетона М200"),
+            ("con", TxKind.EXPENSE, 8000, 4, "Ремонт миксера"),
+            ("cru", TxKind.INCOME, 41000, 3, "Щебень фр. 20-40"),
+            ("cru", TxKind.EXPENSE, 9000, 5, "ГСМ"),
+            ("dev_sales", TxKind.INCOME, 95000, 4, "Продажа квартиры"),
+            ("sup", TxKind.EXPENSE, 18000, 2, "Закупка инструмента"),
+            ("fin", TxKind.EXPENSE, 22000, 3, "Выдача в кассы направлений"),
+        ]
+        for reg_key, kind, amount, days, cp in extra_ops:
+            cash_services.add_operation(
+                register_id=registers[reg_key].id, kind=kind, amount=Decimal(amount),
+                method=PayMethod.CASH, occurred_on=today - dt.timedelta(days=days),
+                actor=by_reg[reg_key], counterparty=cp,
+            )
 
     def _settlements(self, businesses, admin) -> None:
         today = timezone.now().date()

@@ -10,19 +10,20 @@ interface NavItem {
   to: string;
   labelKey: string;
   icon: string;
-  ownerOrStaff?: boolean;
+  /** Requires finance back-office / owner access (hidden from cashiers). */
+  financeStaff?: boolean;
   adminOnly?: boolean;
 }
 
 const NAV: NavItem[] = [
-  { to: "/", labelKey: "nav.dashboard", icon: "◧" },
-  { to: "/finance", labelKey: "nav.finance", icon: "₴" },
+  { to: "/", labelKey: "nav.dashboard", icon: "◧", financeStaff: true },
+  { to: "/finance", labelKey: "nav.finance", icon: "₴", financeStaff: true },
   { to: "/cash", labelKey: "nav.cash", icon: "▤" },
-  { to: "/settlements", labelKey: "nav.settlements", icon: "⇄" },
-  { to: "/payroll", labelKey: "nav.payroll", icon: "☰" },
-  { to: "/approvals", labelKey: "nav.approvals", icon: "✓" },
-  { to: "/reports", labelKey: "nav.reports", icon: "▦" },
-  { to: "/audit", labelKey: "nav.audit", icon: "❋" },
+  { to: "/settlements", labelKey: "nav.settlements", icon: "⇄", financeStaff: true },
+  { to: "/payroll", labelKey: "nav.payroll", icon: "☰", financeStaff: true },
+  { to: "/approvals", labelKey: "nav.approvals", icon: "✓", financeStaff: true },
+  { to: "/reports", labelKey: "nav.reports", icon: "▦", financeStaff: true },
+  { to: "/audit", labelKey: "nav.audit", icon: "❋", financeStaff: true },
   { to: "/users", labelKey: "nav.users", icon: "◯", adminOnly: true },
 ];
 
@@ -30,8 +31,15 @@ export function Sidebar() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const isAdmin = user?.is_superuser || user?.role_code === "admin";
+  const isFinanceStaff = user?.is_finance_staff ?? false;
 
-  const items = NAV.filter((n) => (n.adminOnly ? isAdmin : true));
+  // Кассир видит только «Кассы»; финперсонал/владельцы — все разделы;
+  // управление пользователями — только админ.
+  const items = NAV.filter((n) => {
+    if (n.adminOnly) return isAdmin;
+    if (n.financeStaff) return isFinanceStaff;
+    return true;
+  });
 
   return (
     <aside className="ak-sidebar">

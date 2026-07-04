@@ -1,4 +1,5 @@
 """Thin cash viewsets — parse → call service/selector → respond (КАС-01…04)."""
+from django.db.models import Count
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -84,7 +85,11 @@ class CashOperationViewSet(
 
     def get_queryset(self):
         visible = selectors.registers_visible_to(self.request.user)
-        return selectors.operations_qs().filter(register__in=visible)
+        return (
+            selectors.operations_qs()
+            .filter(register__in=visible)
+            .annotate(documents_count=Count("documents"))
+        )
 
     def create(self, request, *args, **kwargs):
         payload = CashOperationCreateSerializer(data=request.data)
