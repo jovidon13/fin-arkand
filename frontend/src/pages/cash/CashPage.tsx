@@ -23,6 +23,7 @@ import {
   Table,
 } from "@/shared/ui";
 import { AddCashOperationModal } from "@/features/cash";
+import { OperationDocumentsModal } from "@/features/documents";
 import { PeriodFilter, type Period } from "@/widgets/period-filter";
 
 function RegisterCard({ r }: { r: CashRegister }) {
@@ -59,11 +60,14 @@ function RegisterCard({ r }: { r: CashRegister }) {
 export function CashPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canManage = user?.can_manage_finance ?? false;
+  // Кассир заводит операции своей кассы (изоляция гарантируется бэкендом:
+  // список касс уже отфильтрован по ответственности, чужая касса → 403).
+  const canAdd = (user?.can_manage_finance || user?.is_cashier) ?? false;
 
   const [period, setPeriod] = useState<Period>({});
   const [register, setRegister] = useState<number | "">("");
   const [modal, setModal] = useState(false);
+  const [docsFor, setDocsFor] = useState<number | null>(null);
 
   const registers = useCashRegisters();
 
@@ -98,6 +102,16 @@ export function CashPage() {
       render: (r) => <Money value={r.amount} kind={r.kind} />,
     },
     { key: "method", header: t("common.method"), render: (r) => r.method_display },
+    { key: "created_by", header: t("finance.created_by"), render: (r) => r.created_by_name || "—" },
+    {
+      key: "docs",
+      header: "📎",
+      render: (r) => (
+        <Button size="sm" variant="ghost" onClick={() => setDocsFor(r.id)}>
+          📎 {r.documents_count ?? 0}
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -106,7 +120,7 @@ export function CashPage() {
         title={t("cash.title")}
         subtitle={t("cash.subtitle")}
         actions={
-          canManage && (
+          canAdd && (
             <Button onClick={() => setModal(true)}>+ {t("cash.add_operation")}</Button>
           )
         }
@@ -164,6 +178,13 @@ export function CashPage() {
       </Card>
 
       <AddCashOperationModal open={modal} onClose={() => setModal(false)} />
+      <OperationDocumentsModal
+        open={docsFor !== null}
+        target="cashoperation"
+        objectId={docsFor}
+        canUpload={canAdd}
+        onClose={() => setDocsFor(null)}
+      />
     </>
   );
 }

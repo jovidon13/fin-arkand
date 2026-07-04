@@ -3,6 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.core.enums import PayMethod, TxKind, TxStatus
+from apps.core.serializers import PersonNameField
 
 from .models import Transaction
 
@@ -16,19 +17,12 @@ class TransactionSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     method_display = serializers.CharField(source="get_method_display", read_only=True)
     signed_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
-    created_by_name = serializers.CharField(
-        source="created_by.get_full_name", read_only=True, default=None
-    )
-    checked_by_name = serializers.CharField(
-        source="checked_by.get_full_name", read_only=True, default=None
-    )
-    confirmed_by_name = serializers.CharField(
-        source="confirmed_by.get_full_name", read_only=True, default=None
-    )
-    recipient_manager_name = serializers.CharField(
-        source="recipient_manager.get_full_name", read_only=True, default=None
-    )
+    created_by_name = PersonNameField("created_by")
+    checked_by_name = PersonNameField("checked_by")
+    confirmed_by_name = PersonNameField("confirmed_by")
+    recipient_manager_name = PersonNameField("recipient_manager")
     requires_owner = serializers.BooleanField(read_only=True)
+    documents_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Transaction
@@ -41,12 +35,16 @@ class TransactionSerializer(serializers.ModelSerializer):
             "recipient_manager", "recipient_manager_name", "requires_owner",
             "created_by", "created_by_name",
             "checked_by", "checked_by_name", "checked_at",
-            "confirmed_by", "confirmed_by_name", "confirmed_at", "created_at",
+            "confirmed_by", "confirmed_by_name", "confirmed_at",
+            "documents_count", "created_at",
         ]
         read_only_fields = [
             "status", "created_by", "checked_by", "checked_at",
             "confirmed_by", "confirmed_at",
         ]
+
+    def get_documents_count(self, obj) -> int:
+        return obj.documents.count()
 
 
 class TransactionCreateSerializer(serializers.Serializer):

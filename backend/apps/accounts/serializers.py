@@ -29,10 +29,12 @@ class MeSerializer(UserSerializer):
     is_finance_staff = serializers.BooleanField(read_only=True)
     can_manage_finance = serializers.BooleanField(read_only=True)
     is_owner = serializers.BooleanField(read_only=True)
+    is_cashier = serializers.BooleanField(read_only=True)
 
     class Meta(UserSerializer.Meta):
         fields = UserSerializer.Meta.fields + [
-            "is_finance_staff", "can_manage_finance", "is_owner", "is_superuser",
+            "is_finance_staff", "can_manage_finance", "is_owner", "is_cashier",
+            "is_superuser",
         ]
 
 

@@ -9,13 +9,23 @@ import { Button, Field, Input } from "@/shared/ui";
 import "./login.css";
 
 const DEMO_PASSWORD = "arkand2026";
-// One account per distinct access level (no duplicates of the same role).
+// One account per distinct back-office access level.
 const DEMO_ACCOUNTS = [
   { roleKey: "auth.role_owner", username: "sohib" },
   { roleKey: "auth.role_chief", username: "chief" },
   { roleKey: "auth.role_accountant", username: "buh1" },
-  { roleKey: "auth.role_cashier", username: "cashier_dev" },
   { roleKey: "auth.role_admin", username: "admin" },
+] as const;
+
+// Кассиры по направлениям — каждый видит только свою кассу (изоляция по направлению).
+const DEMO_CASHIERS = [
+  { label: "Застройщик", username: "cashier_dev" },
+  { label: "Продажи застройщика", username: "cashier_dev_sales" },
+  { label: "Проектная", username: "cashier_des" },
+  { label: "Бетонный завод", username: "cashier_con" },
+  { label: "Щебёночный завод", username: "cashier_cru" },
+  { label: "Снабжение", username: "cashier_sup" },
+  { label: "Центральная касса", username: "cashier_fin" },
 ] as const;
 
 export function LoginPage() {
@@ -104,6 +114,24 @@ export function LoginPage() {
               </button>
             ))}
           </div>
+
+          <div className="ak-login__demo-subtitle">
+            {t("auth.role_cashier")} · {t("auth.cashiers_by_direction")}
+          </div>
+          <div className="ak-login__demo-grid">
+            {DEMO_CASHIERS.map((c) => (
+              <button
+                type="button"
+                key={c.username}
+                className="ak-login__demo-chip"
+                onClick={() => fillDemo(c.username)}
+              >
+                <span className="ak-login__demo-role">{c.label}</span>
+                <span className="ak-login__demo-login">{c.username}</span>
+              </button>
+            ))}
+          </div>
+
           <div className="ak-login__demo-pass">
             {t("auth.demo_password")}: <code>{DEMO_PASSWORD}</code>
           </div>

@@ -6,6 +6,7 @@ article. Money is Decimal; records are soft-deleted, never physically removed.
 from __future__ import annotations
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -74,6 +75,11 @@ class Transaction(MoneyBaseModel):
         help_text=_("Владелец, подтвердивший крупную операцию"),
     )
     confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    # Прикреплённые фото документов (чек/счёт/договор/накладная).
+    documents = GenericRelation(
+        "documents.OperationDocument", related_query_name="transaction"
+    )
 
     class Meta:
         verbose_name = _("Транзакция")

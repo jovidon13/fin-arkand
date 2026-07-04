@@ -68,6 +68,14 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+.ak-login__demo-subtitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--n-600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 14px 0 8px;
+}
 .ak-login__demo-chip {
   display: flex;
   flex-direction: column;

@@ -80,7 +80,8 @@
     "role_chief": "Гл. бухгалтер",
     "role_accountant": "Бухгалтер",
     "role_cashier": "Кассир",
-    "role_admin": "Админ"
+    "role_admin": "Админ",
+    "cashiers_by_direction": "по направлениям"
   },
   "finance": {
     "title": "Финансы",
@@ -94,6 +95,8 @@
     "documents": "Фото документов (чек, счёт, договор, накладная)",
     "created_by": "Провёл",
     "checked_by": "Проверил",
+    "confirmed_by": "Подтвердил",
+    "approval_chain": "Провёл / Проверил / Подтвердил",
     "check": "Проверить",
     "confirm_tx": "Подтвердить операцию",
     "counterparty": "Контрагент",
@@ -114,6 +117,10 @@
     "payables": "Кредиторка · мы должны"
   },
   "docs": {
+    "title": "Документы операции",
+    "empty": "Документы не прикреплены",
+    "uploaded": "Документ загружен",
+    "view": "Документы",
     "receipt": "Чек",
     "invoice": "Счёт",
     "contract": "Договор",

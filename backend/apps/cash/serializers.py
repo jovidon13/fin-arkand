@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.core.enums import PayMethod, TxKind
+from apps.core.serializers import PersonNameField
 
 from . import selectors
 from .models import CashOperation, CashRegister
@@ -38,9 +39,8 @@ class CashOperationSerializer(serializers.ModelSerializer):
     signed_amount = serializers.DecimalField(
         max_digits=14, decimal_places=2, read_only=True
     )
-    created_by_name = serializers.CharField(
-        source="created_by.get_full_name", read_only=True, default=None
-    )
+    created_by_name = PersonNameField("created_by")
+    documents_count = serializers.SerializerMethodField()
 
     class Meta:
         model = CashOperation
@@ -48,9 +48,12 @@ class CashOperationSerializer(serializers.ModelSerializer):
             "id", "register", "register_name", "kind", "kind_display",
             "amount", "signed_amount", "method", "method_display",
             "occurred_on", "counterparty", "note",
-            "created_by", "created_by_name", "finance_transaction",
-            "created_at",
+            "created_by", "created_by_name", "documents_count",
+            "finance_transaction", "created_at",
         ]
+
+    def get_documents_count(self, obj) -> int:
+        return obj.documents.count()
 
 
 class CashOperationCreateSerializer(serializers.Serializer):

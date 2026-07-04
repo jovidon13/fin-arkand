@@ -29,6 +29,7 @@ import {
   useToast,
 } from "@/shared/ui";
 import { AddTransactionModal } from "@/features/finance";
+import { OperationDocumentsModal } from "@/features/documents";
 import { PeriodFilter, type Period } from "@/widgets/period-filter";
 
 export function FinancePage() {
@@ -37,10 +38,12 @@ export function FinancePage() {
   const { user } = useAuth();
   const canManage = user?.can_manage_finance ?? false;
   const isOwner = user?.is_owner ?? false;
+  const isSuperuser = user?.is_superuser ?? false;
 
   const [period, setPeriod] = useState<Period>({});
   const [business, setBusiness] = useState<number | "">("");
   const [modal, setModal] = useState<null | "income" | "expense">(null);
+  const [docsFor, setDocsFor] = useState<number | null>(null);
 
   const businesses = useBusinesses();
   const filters: TransactionFilters = useMemo(
@@ -96,8 +99,34 @@ export function FinancePage() {
       numeric: true,
       render: (r) => <Money value={r.amount} kind={r.kind} />,
     },
-    { key: "created_by", header: t("finance.created_by"), render: (r) => r.created_by_name || "—" },
-    { key: "checked_by", header: t("finance.checked_by"), render: (r) => r.checked_by_name || "—" },
+    {
+      key: "chain",
+      header: t("finance.approval_chain"),
+      render: (r) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 12 }}>
+          <span title={t("finance.created_by")}>👤 {r.created_by_name || "—"}</span>
+          {r.checked_by_name && (
+            <span title={t("finance.checked_by")} style={{ color: "var(--n-600)" }}>
+              ✓ {r.checked_by_name}
+            </span>
+          )}
+          {r.confirmed_by_name && (
+            <span title={t("finance.confirmed_by")} style={{ color: "var(--brand)" }}>
+              👑 {r.confirmed_by_name}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "docs",
+      header: "📎",
+      render: (r) => (
+        <Button size="sm" variant="ghost" onClick={() => setDocsFor(r.id)}>
+          📎 {r.documents_count ?? 0}
+        </Button>
+      ),
+    },
     {
       key: "status",
       header: t("common.status"),
@@ -120,8 +149,8 @@ export function FinancePage() {
             </div>
           );
         }
-        // Шаг владельца: подтвердить крупную операцию.
-        if ((isOwner || canManage) && r.status === "awaiting_owner") {
+        // Шаг владельца: подтвердить крупную операцию — ТОЛЬКО владелец (не бухгалтер).
+        if ((isOwner || isSuperuser) && r.status === "awaiting_owner") {
           return (
             <div style={{ display: "flex", gap: 6 }}>
               <Button size="sm" variant="success" onClick={() => act(confirm, r.id, t("finance.msg_confirmed"))}>
@@ -190,6 +219,13 @@ export function FinancePage() {
       </Card>
 
       <AddTransactionModal open={modal !== null} kind={modal ?? "income"} onClose={() => setModal(null)} />
+      <OperationDocumentsModal
+        open={docsFor !== null}
+        target="transaction"
+        objectId={docsFor}
+        canUpload={canManage}
+        onClose={() => setDocsFor(null)}
+      />
     </>
   );
 }

@@ -35,6 +35,7 @@ export const transactionSchema = z.object({
   recipient_manager: z.number().nullable().optional(),
   recipient_manager_name: z.string().nullable().optional(),
   requires_owner: z.boolean().optional(),
+  documents_count: z.number().optional(),
   created_by: z.number().nullable().optional(),
   created_by_name: z.string().nullable().optional(),
   checked_by: z.number().nullable().optional(),

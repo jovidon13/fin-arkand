@@ -5,6 +5,28 @@ from rest_framework import serializers
 from .models import Business, City, ExpenseCategory, SiteObject
 
 
+class PersonNameField(serializers.Field):
+    """Human name of a related user with a username fallback.
+
+    Unlike ``source="user.get_full_name"`` (which collapses to an empty string
+    when first/last name are blank), this returns the username so «кто провёл /
+    проверил / получил» is never shown as «—» just because the profile has no
+    full name filled in.
+    """
+
+    def __init__(self, attr: str, **kwargs):
+        self._attr = attr
+        kwargs["read_only"] = True
+        kwargs.setdefault("source", "*")
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        user = getattr(obj, self._attr, None)
+        if user is None:
+            return None
+        return user.get_full_name() or user.username
+
+
 class BusinessSerializer(serializers.ModelSerializer):
     kind_display = serializers.CharField(source="get_kind_display", read_only=True)
 

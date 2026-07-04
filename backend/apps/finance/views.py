@@ -1,5 +1,6 @@
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsOwner
@@ -81,6 +82,18 @@ class TransactionViewSet(
     def confirm(self, request, pk=None):
         s = ConfirmSerializer(data=request.data)
         s.is_valid(raise_exception=True)
+        # Крупную операцию (выше порога бизнеса) подтверждает ТОЛЬКО владелец —
+        # бухгалтер не может обойти шаг владельца, даже имея право confirm.
+        tx0 = selectors.transactions_qs().filter(pk=pk).first()
+        user = request.user
+        if (
+            tx0 is not None
+            and tx0.requires_owner
+            and not (user.is_owner or user.is_superuser)
+        ):
+            raise PermissionDenied(
+                "Крупную операцию подтверждает только владелец (шаг владельца)."
+            )
         key = s.validated_data["idempotency_key"] or request.headers.get("Idempotency-Key")
         tx = services.confirm_transaction(tx_id=pk, actor=request.user, idempotency_key=key)
         return Response(TransactionSerializer(tx).data)

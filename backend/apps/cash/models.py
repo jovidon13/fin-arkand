@@ -12,6 +12,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -87,6 +88,11 @@ class CashOperation(MoneyBaseModel):
     finance_transaction = models.OneToOneField(
         "finance.Transaction", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="cash_operation",
+    )
+
+    # Прикреплённые фото документов (чек/счёт/договор/накладная).
+    documents = GenericRelation(
+        "documents.OperationDocument", related_query_name="cashoperation"
     )
 
     class Meta:

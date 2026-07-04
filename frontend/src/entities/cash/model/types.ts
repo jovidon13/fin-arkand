@@ -33,6 +33,7 @@ export const cashOperationSchema = z.object({
   note: z.string(),
   created_by: z.number().nullable().optional(),
   created_by_name: z.string().nullable().optional(),
+  documents_count: z.number().optional(),
   finance_transaction: z.number().nullable().optional(),
   created_at: z.string().optional(),
 });

@@ -20,6 +20,7 @@ export interface CurrentUser {
   is_finance_staff: boolean;
   can_manage_finance: boolean;
   is_owner: boolean;
+  is_cashier: boolean;
   is_superuser: boolean;
 }
 

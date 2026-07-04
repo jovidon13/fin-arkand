@@ -6,9 +6,12 @@ import {
   useCreateCashOperation,
   type CashOperationCreate,
 } from "@/entities/cash";
+import { useUploadDocument, type DocType } from "@/entities/document";
 import { toApiError } from "@/shared/api";
 import { toISODate } from "@/shared/lib";
-import { Button, Field, Input, Modal, Select, Textarea, useToast } from "@/shared/ui";
+import { Button, Field, FormRow, Input, Modal, Select, Textarea, useToast } from "@/shared/ui";
+
+const DOC_TYPES: DocType[] = ["receipt", "invoice", "contract", "waybill", "other"];
 
 export function AddCashOperationModal({
   open,
@@ -21,6 +24,7 @@ export function AddCashOperationModal({
   const toast = useToast();
   const registers = useCashRegisters();
   const create = useCreateCashOperation();
+  const upload = useUploadDocument();
 
   const [form, setForm] = useState<CashOperationCreate>({
     register: 0,
@@ -31,6 +35,8 @@ export function AddCashOperationModal({
     counterparty: "",
     note: "",
   });
+  const [docType, setDocType] = useState<DocType>("receipt");
+  const [docs, setDocs] = useState<{ doc_type: DocType; file: File }[]>([]);
 
   const set = (patch: Partial<CashOperationCreate>) =>
     setForm((f) => ({ ...f, ...patch }));
@@ -41,10 +47,20 @@ export function AddCashOperationModal({
       return;
     }
     try {
-      await create.mutateAsync(form);
+      const op = await create.mutateAsync(form);
+      // Фото документов при операции (чек/счёт/договор/накладная).
+      for (const d of docs) {
+        await upload.mutateAsync({
+          target: "cashoperation",
+          object_id: op.id,
+          doc_type: d.doc_type,
+          file: d.file,
+        });
+      }
       toast.push(t("cash.operation_added"), "success");
       onClose();
       setForm((f) => ({ ...f, amount: "", counterparty: "", note: "" }));
+      setDocs([]);
     } catch (e) {
       toast.push(toApiError(e).message, "error");
     }
@@ -60,7 +76,7 @@ export function AddCashOperationModal({
           <Button variant="secondary" onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={submit} loading={create.isPending}>
+          <Button onClick={submit} loading={create.isPending || upload.isPending}>
             {t("common.create")}
           </Button>
         </>
@@ -118,6 +134,50 @@ export function AddCashOperationModal({
       </Field>
       <Field label={t("common.note")}>
         <Textarea value={form.note} onChange={(e) => set({ note: e.target.value })} />
+      </Field>
+
+      {/* Фото документов: чек / счёт / договор / накладная */}
+      <Field label={t("finance.documents")}>
+        <FormRow>
+          <Select
+            value={docType}
+            onChange={(e) => setDocType(e.target.value as DocType)}
+            options={DOC_TYPES.map((d) => ({ value: d, label: t(`docs.${d}`) }))}
+          />
+          <Input
+            type="file"
+            accept="image/*,.pdf"
+            multiple
+            onChange={(e) => {
+              const files = e.target.files;
+              if (files) {
+                setDocs((list) => [
+                  ...list,
+                  ...Array.from(files).map((file) => ({ doc_type: docType, file })),
+                ]);
+              }
+              e.target.value = "";
+            }}
+          />
+        </FormRow>
+        {docs.length > 0 && (
+          <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 13, color: "var(--n-700)" }}>
+            {docs.map((d, i) => (
+              <li key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span>
+                  {t(`docs.${d.doc_type}`)}: {d.file.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDocs((list) => list.filter((_, j) => j !== i))}
+                  style={{ border: "none", background: "none", color: "var(--error)", cursor: "pointer" }}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Field>
     </Modal>
   );
