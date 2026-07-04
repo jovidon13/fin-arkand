@@ -248,31 +248,16 @@ class Command(BaseCommand):
         finance_services.check_transaction(tx_id=big.id, actor=buh)
 
     def _cash(self, businesses, users) -> dict[str, CashRegister]:
-        reg_dev, _ = CashRegister.objects.get_or_create(
-            code="cash-developer",
-            defaults={"business": businesses["developer"], "name": "Касса застройщика",
-                      "turnover_limit": Decimal(150000)},
-        )
-        reg_des, _ = CashRegister.objects.get_or_create(
-            code="cash-design",
-            defaults={"business": businesses["design"], "name": "Касса проектной",
-                      "turnover_limit": Decimal(80000)},
-        )
-        reg_con, _ = CashRegister.objects.get_or_create(
-            code="cash-concrete",
-            defaults={"business": businesses["concrete"], "name": "Касса бетонного завода",
-                      "turnover_limit": Decimal(120000)},
-        )
-        reg_cru, _ = CashRegister.objects.get_or_create(
-            code="cash-crushing",
-            defaults={"business": businesses["crushing"], "name": "Касса щебёночного завода",
-                      "turnover_limit": Decimal(120000)},
-        )
-        reg_dev.responsible.add(users["cashier_dev"])
-        reg_des.responsible.add(users["cashier_des"])
-        reg_con.responsible.add(users["cashier_con"])
-        reg_cru.responsible.add(users["cashier_cru"])
-        return {"dev": reg_dev, "des": reg_des, "con": reg_con, "cru": reg_cru}
+        # Единый источник касс/кассиров по направлениям (изоляция по направлению,
+        # КАС-04). Та же логика доступна на проде командой `provision_cashiers`.
+        from apps.cash.management.commands.provision_cashiers import ensure_cashiers
+        regs = ensure_cashiers()
+        return {
+            "dev": regs["cash-developer"], "des": regs["cash-design"],
+            "con": regs["cash-concrete"], "cru": regs["cash-crushing"],
+            "dev_sales": regs["cash-developer-sales"],
+            "sup": regs["cash-supply"], "fin": regs["cash-finance"],
+        }
 
     def _cash_ops(self, registers, users) -> None:
         today = timezone.now().date()
@@ -301,6 +286,26 @@ class Command(BaseCommand):
             register_id=registers["cru"].id, kind=TxKind.INCOME, amount=Decimal(38500),
             method=PayMethod.CASH, occurred_on=today - dt.timedelta(days=1),
             actor=users["cashier_cru"], counterparty="Щебень фр. 5-20",
+        )
+        # Новые направления: продажи застройщика, снабжение, центральная касса.
+        # Actor — ответственный кассир своей кассы (изоляция по направлению).
+        cashier_sales = User.objects.get(username="cashier_dev_sales")
+        cashier_sup = User.objects.get(username="cashier_sup")
+        cashier_fin = User.objects.get(username="cashier_fin")
+        cash_services.add_operation(
+            register_id=registers["dev_sales"].id, kind=TxKind.INCOME, amount=Decimal(120000),
+            method=PayMethod.CASH, occurred_on=today, actor=cashier_sales,
+            counterparty="Продажа квартиры", note="Первый взнос",
+        )
+        cash_services.add_operation(
+            register_id=registers["sup"].id, kind=TxKind.EXPENSE, amount=Decimal(34000),
+            method=PayMethod.CASH, occurred_on=today, actor=cashier_sup,
+            counterparty="Закупка материалов",
+        )
+        cash_services.add_operation(
+            register_id=registers["fin"].id, kind=TxKind.INCOME, amount=Decimal(50000),
+            method=PayMethod.CASH, occurred_on=today, actor=cashier_fin,
+            counterparty="Инкассация из касс направлений",
         )
 
     def _settlements(self, businesses, admin) -> None:
@@ -419,9 +424,12 @@ class Command(BaseCommand):
             "  dovud        — Владелец (проектная)",
             "  chief        — Главный бухгалтер",
             "  buh1 / buh2  — Бухгалтеры",
-            "  cashier_dev  — Кассир застройщика",
-            "  cashier_des  — Кассир проектной",
-            "  cashier_con  — Кассир бетонного завода",
-            "  cashier_cru  — Кассир щебёночного завода",
+            "  cashier_dev        — Кассир застройщика",
+            "  cashier_dev_sales  — Кассир продаж застройщика",
+            "  cashier_des        — Кассир проектной",
+            "  cashier_con        — Кассир бетонного завода",
+            "  cashier_cru        — Кассир щебёночного завода",
+            "  cashier_sup        — Кассир снабжения",
+            "  cashier_fin        — Кассир центральной кассы (финансы)",
         ]:
             self.stdout.write(line)
